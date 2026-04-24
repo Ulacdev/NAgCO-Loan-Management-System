@@ -442,6 +442,24 @@ function App() {
     }
   };
 
+  const handleUpdateMemberRole = async (id: string, role: string) => {
+    try {
+      const response = await fetch(`/api/members/${id}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      if (response.ok) {
+        setMembers(prev => prev.map(m => m.id === id ? { ...m, role: role as any } : m));
+        addToast(`Role updated to ${role}`, "success");
+      } else {
+        addToast('Failed to update role', "error");
+      }
+    } catch (err) {
+      addToast('Network error', "error");
+    }
+  };
+
   const handleDeleteMember = async (id: string) => {
     if (!confirm('Are you sure you want to delete this member?')) return;
     try {
@@ -2049,28 +2067,28 @@ function App() {
                       <p className="text-sm font-bold text-gray-800">{editingMember.name}</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <button
-                        onClick={() => {
-                          addToast(`Role of ${editingMember.name} updated to MEMBER`, "success");
-                          setShowEditRoleModal(false);
-                        }}
-                        className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'MEMBER' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
-                      >
-                        <User size={24} className={editingMember.role === 'MEMBER' ? 'text-brand-700' : 'text-gray-300'} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Member</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          addToast(`Role of ${editingMember.name} updated to ADMIN`, "success");
-                          setShowEditRoleModal(false);
-                        }}
-                        className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'ADMIN' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
-                      >
-                        <ShieldCheck size={24} className={editingMember.role === 'ADMIN' ? 'text-brand-700' : 'text-gray-300'} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
-                      </button>
-                    </div>
+                     <div className="grid grid-cols-2 gap-4">
+                       <button
+                         onClick={() => {
+                           handleUpdateMemberRole(editingMember.id, 'MEMBER');
+                           setShowEditRoleModal(false);
+                         }}
+                         className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'MEMBER' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
+                       >
+                         <User size={24} className={editingMember.role === 'MEMBER' ? 'text-brand-700' : 'text-gray-300'} />
+                         <span className="text-[10px] font-black uppercase tracking-widest">Member</span>
+                       </button>
+                       <button
+                         onClick={() => {
+                           handleUpdateMemberRole(editingMember.id, 'ADMIN');
+                           setShowEditRoleModal(false);
+                         }}
+                         className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'ADMIN' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
+                       >
+                         <ShieldCheck size={24} className={editingMember.role === 'ADMIN' ? 'text-brand-700' : 'text-gray-300'} />
+                         <span className="text-[10px] font-black uppercase tracking-widest">Admin</span>
+                       </button>
+                     </div>
 
                     <p className="mt-6 text-[10px] font-bold text-gray-400 uppercase tracking-tight leading-relaxed text-center italic">
                       Warning: Granting admin access provides full control over loan approvals and financial reports.
