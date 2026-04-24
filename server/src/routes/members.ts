@@ -62,6 +62,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
+    // First, delete all records referencing this user to avoid FK constraint errors
+    await supabase.from('notifications').delete().eq('user_id', id);
+    await supabase.from('payments').delete().eq('member_id', id);
+    await supabase.from('loans').delete().eq('member_id', id);
+
+    // Finally delete the user
     const { error } = await supabase
       .from('users')
       .delete()
@@ -69,7 +75,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     if (error) {
       console.error('Delete member error:', error);
-      res.status(500).json({ error: 'Failed to delete member' });
+      res.status(500).json({ error: error.message || 'Failed to delete member' });
       return;
     }
 

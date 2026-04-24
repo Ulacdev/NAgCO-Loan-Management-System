@@ -121,7 +121,7 @@ export async function sendNewRegistrationEmail(memberName: string, memberEmail: 
 
 // Send password reset link email
 export async function sendResetLinkEmail(toEmail: string, memberName: string, resetToken: string, frontendUrl?: string) {
-  const baseUrl = frontendUrl || 'http://localhost:3000';
+  const baseUrl = process.env.APP_URL || frontendUrl || 'http://localhost:3000';
   const resetLink = `${baseUrl}/?view=reset&token=${resetToken}`;
   try {
     await transporter.sendMail({

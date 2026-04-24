@@ -457,6 +457,7 @@ function App() {
       });
       if (response.ok) {
         setMembers(prev => prev.map(m => m.id === id ? { ...m, status: status as any } : m));
+        addToast(`Member status updated to ${status}`, "success");
       } else {
         addToast('Failed to update status', "error");
       }
@@ -491,6 +492,7 @@ function App() {
       });
       if (response.ok) {
         setMembers(prev => prev.filter(m => m.id !== id));
+        addToast('Member deleted successfully', "success");
       } else {
         addToast('Failed to delete member', "error");
       }
@@ -508,7 +510,7 @@ function App() {
       });
       if (response.ok) {
         setLoans(prev => prev.map(l => l.id === id ? { ...l, status } : l));
-        addToast(`Loan ${status === 'Active' ? 'approved' : 'rejected'} successfully.`, "error");
+        addToast(`Loan ${status === 'Active' ? 'approved' : 'rejected'} successfully.`, "success");
       } else {
         addToast('Failed to update loan status', "error");
       }
@@ -602,6 +604,7 @@ function App() {
       });
       if (response.ok) {
         setAnnouncements(prev => prev.filter(a => a.id !== id));
+        addToast('Announcement deleted successfully', "success");
       } else {
         addToast('Failed to delete announcement', "error");
       }
@@ -1403,10 +1406,11 @@ function App() {
                                 </td>
                                 <td className="px-6 py-4 text-right font-mono font-bold text-gray-700">₱ {loan.amount.toLocaleString()}</td>
                                 <td className="px-6 py-4 hidden sm:table-cell">
-                                  <span className={`text-[10px] font-black uppercase tracking-tighter ${loan.status === 'Pending' ? 'text-brand-500' :
-                                      loan.status === 'Active' ? 'text-brand-500' :
-                                        loan.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
-                                    }`}>
+                                  <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                    loan.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                    loan.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                    loan.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                                  }`}>
                                     {loan.status}
                                   </span>
                                 </td>
@@ -1458,9 +1462,18 @@ function App() {
                               <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4 font-bold text-gray-800">{member.name}</td>
                                 <td className="px-6 py-4 text-xs text-gray-500">{member.email}</td>
-                                <td className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{member.role}</td>
                                 <td className="px-6 py-4">
-                                  <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold ${member.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                  <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                    member.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {member.role}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                    member.status === 'Active' ? 'bg-green-100 text-green-700' : 
+                                    member.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                                  }`}>
                                     {member.status}
                                   </span>
                                 </td>
@@ -1550,10 +1563,11 @@ function App() {
                               </td>
                               <td className="px-6 py-4 text-right font-mono font-bold text-gray-700">₱ {loan.amount.toLocaleString()}</td>
                               <td className="px-6 py-4">
-                                <span className={`text-[10px] font-black uppercase tracking-tighter ${loan.status === 'Pending' ? 'text-brand-500' :
-                                    loan.status === 'Active' ? 'text-brand-500' :
-                                      loan.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
-                                  }`}>
+                                <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                  loan.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                  loan.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                  loan.status === 'Rejected' ? 'text-red-700 bg-red-100' : 'bg-gray-100 text-gray-500'
+                                }`}>
                                   {loan.status}
                                 </span>
                               </td>
@@ -1622,12 +1636,16 @@ function App() {
                             </td>
                             <td className="px-6 py-4 text-gray-600 hidden lg:table-cell">{m.email}</td>
                             <td className="px-6 py-4 hidden md:table-cell">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{m.role}</span>
+                              <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                m.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {m.role}
+                              </span>
                             </td>
                             <td className="px-6 py-4">
-                              <span className={`text-[10px] font-black uppercase tracking-tighter ${
-                                m.status === 'Active' ? 'text-brand-600' :
-                                m.status === 'Pending' ? 'text-brand-400' : 'text-red-500'
+                              <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                m.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                m.status === 'Pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
                               }`}>
                                 {m.status}
                               </span>
@@ -2358,9 +2376,11 @@ function App() {
                               <td className="px-6 py-4 font-bold text-gray-800">Loan: {l.type}</td>
                               <td className="px-6 py-4 text-right font-mono font-bold text-gray-900 hidden xs:table-cell">₱ {l.amount.toLocaleString()}</td>
                               <td className="px-6 py-4">
-                                <span className={`text-[10px] font-black uppercase tracking-tighter ${l.status === 'Rejected' ? 'text-red-500' :
-                                    l.status === 'Pending' ? 'text-brand-400' : 'text-brand-500'
-                                  }`}>
+                                <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                  l.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                  l.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
                                   {l.status}
                                 </span>
                               </td>
