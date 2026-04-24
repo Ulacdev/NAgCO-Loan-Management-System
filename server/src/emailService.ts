@@ -120,8 +120,9 @@ export async function sendNewRegistrationEmail(memberName: string, memberEmail: 
 }
 
 // Send password reset link email
-export async function sendResetLinkEmail(toEmail: string, memberName: string, resetToken: string) {
-  const resetLink = `http://localhost:3000/?view=reset&token=${resetToken}`;
+export async function sendResetLinkEmail(toEmail: string, memberName: string, resetToken: string, frontendUrl?: string) {
+  const baseUrl = frontendUrl || 'http://localhost:3000';
+  const resetLink = `${baseUrl}/?view=reset&token=${resetToken}`;
   try {
     await transporter.sendMail({
       from: `"NAgCO System" <${process.env.EMAIL_USER}>`,
@@ -180,7 +181,7 @@ export async function sendAnnouncementEmail(toEmail: string, title: string, cont
               ${content}
             </div>
             <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #f3f4f6; text-align: center;">
-              <a href="http://localhost:3000" style="background: #15803d; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; display: inline-block; text-transform: uppercase; letter-spacing: 1px;">
+              <a href="${process.env.APP_URL || 'http://localhost:3000'}" style="background: #15803d; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; display: inline-block; text-transform: uppercase; letter-spacing: 1px;">
                 View on Dashboard
               </a>
             </div>

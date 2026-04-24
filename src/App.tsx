@@ -128,12 +128,17 @@ const LOAN_TYPES = {
 
 // --- Components ---
 
-const SidebarItem = ({ icon: Icon, label, id, currentView, setView, sidebarOpen }: { icon: any, label: string, id: string, currentView: string, setView: (id: string) => void, sidebarOpen: boolean }) => (
+const SidebarItem = ({ icon: Icon, label, id, currentView, setView, sidebarOpen, setSidebarOpen }: { icon: any, label: string, id: string, currentView: string, setView: (id: string) => void, sidebarOpen: boolean, setSidebarOpen?: (val: boolean) => void }) => (
   <button
-    onClick={() => setView(id)}
+    onClick={() => {
+      setView(id);
+      if (window.innerWidth < 1024 && setSidebarOpen) {
+        setSidebarOpen(false);
+      }
+    }}
     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-bold text-sm ${currentView === id ? 'bg-brand-800 text-white shadow-sm' : 'text-white hover:bg-brand-600/40'} ${(!label && !sidebarOpen) ? 'justify-center' : ''}`}
   >
-    <Icon size={18} className={`${currentView === id ? 'text-brand-200' : 'opacity-80'} shrink-0`} />
+    <Icon size={18} className="text-white shrink-0" />
     {(label || sidebarOpen) && <span>{label}</span>}
   </button>
 );
@@ -202,6 +207,23 @@ function App() {
       setProfileImage(user.profile_image);
     }
   }, [user?.profile_image]);
+
+  // Handle mobile responsiveness for sidebar
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) { // Using 1024px for tablet/mobile threshold
+        setSidebarOpen(false);
+      } else {
+        setSidebarOpen(true);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -345,7 +367,7 @@ function App() {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: recoveryEmail }),
+        body: JSON.stringify({ email: recoveryEmail, frontendUrl: window.location.origin }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -774,7 +796,7 @@ function App() {
   if (view === 'login') {
     return (
       <>
-    <div className="min-h-screen bg-[#4CAF50] flex items-center justify-center p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-white sm:bg-[#4CAF50] flex items-center justify-center sm:p-4 font-sans relative overflow-hidden">
 
 
       <AnimatePresence>
@@ -821,14 +843,14 @@ function App() {
         )}
       </AnimatePresence>
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full sm:max-w-md h-full sm:h-auto relative z-10">
         <AnimatePresence mode="wait">
           {loginSubView === 'login' && (
-            <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-6 rounded-2xl shadow-2xl">
-                <div className="text-center mb-5">
-                  <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-3 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
-                  <h1 className="text-2xl font-bold text-[#2E7D32] leading-tight mb-1">NAgCO Loan Management System</h1>
-                  <p className="text-sm text-gray-500 font-medium">Napilihan Agriculture Cooperative</p>
+            <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white px-6 py-12 sm:p-8 sm:rounded-2xl sm:shadow-2xl h-full sm:h-auto flex flex-col">
+                <div className="text-center mb-10 sm:mb-8">
+                  <img src="/logo.png" alt="NAgCO" className="w-24 h-24 sm:w-20 sm:h-20 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                  <h1 className="text-3xl sm:text-2xl font-bold text-[#2E7D32] leading-tight mb-2">NAgCO</h1>
+                  <p className="text-base sm:text-sm text-gray-500 font-medium">Napilihan Agriculture Cooperative</p>
                 </div>
 
               <form onSubmit={handleLogin} className="space-y-4">
@@ -868,11 +890,11 @@ function App() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-2">
+                <button type="submit" className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold text-base shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-4">
                   Log In
                 </button>
 
-                <div className="text-center pt-4">
+                <div className="text-center pt-6 mt-auto sm:mt-4">
                   <p className="text-xs font-medium text-gray-600">
                     Don't have an account? <button type="button" onClick={() => setLoginSubView('create')} className="text-[#2E7D32] font-bold hover:underline">Create Account</button>
                   </p>
@@ -882,11 +904,11 @@ function App() {
           )}
 
           {loginSubView === 'otp' && (
-            <motion.div key="otp" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-              <div className="text-center mb-8">
-                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
-                <h2 className="text-xl font-bold text-gray-800">Verify Identity</h2>
-                <p className="text-sm text-gray-500 mt-2">We've sent a 6-digit code to your email.</p>
+            <motion.div key="otp" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white px-6 py-12 sm:p-8 sm:rounded-2xl sm:shadow-2xl h-full sm:h-auto flex flex-col">
+              <div className="text-center mb-10">
+                <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-6 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-2xl font-bold text-gray-800">Verify Identity</h2>
+                <p className="text-base text-gray-500 mt-2">We've sent a 6-digit code to your email.</p>
               </div>
 
               <form onSubmit={handleVerifyOTP} className="space-y-6">
@@ -924,11 +946,11 @@ function App() {
           )}
 
           {loginSubView === 'create' && (
-            <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
-              <div className="text-center mb-6">
-                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
-                <h1 className="text-2xl font-bold text-[#2E7D32] mb-1">Create Account</h1>
-                <p className="text-sm text-gray-500">Join our cooperative today</p>
+            <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white px-6 py-12 sm:p-8 sm:rounded-2xl sm:shadow-2xl h-full sm:h-auto flex flex-col overflow-y-auto custom-scrollbar">
+              <div className="text-center mb-10">
+                <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-6 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h1 className="text-2xl font-bold text-[#2E7D32] mb-2">Create Account</h1>
+                <p className="text-base text-gray-500">Join our cooperative today</p>
               </div>
 
               <form onSubmit={handleRegister} className="space-y-4">
@@ -1026,7 +1048,7 @@ function App() {
                   </div>
                 </div>
 
-                <button type="submit" className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-2">
+                <button type="submit" className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold text-base shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-4">
                   Create Account
                 </button>
                 <div className="text-center pt-4">
@@ -1039,11 +1061,11 @@ function App() {
           )}
 
           {loginSubView === 'forgot' && (
-            <motion.div key="forgot" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-              <div className="text-center mb-8">
-                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
-                <h2 className="text-xl font-bold text-gray-800">Password Recovery</h2>
-                <p className="text-sm text-gray-500 mt-2">Enter your email to receive a reset link.</p>
+            <motion.div key="forgot" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white px-6 py-12 sm:p-8 sm:rounded-2xl sm:shadow-2xl h-full sm:h-auto flex flex-col">
+              <div className="text-center mb-10">
+                <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-6 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-2xl font-bold text-gray-800">Recovery</h2>
+                <p className="text-base text-gray-500 mt-2">Enter your email to receive a reset link.</p>
               </div>
 
               <form onSubmit={handleForgotPassword} className="space-y-6">
@@ -1084,11 +1106,11 @@ function App() {
           )}
 
           {loginSubView === 'reset' && (
-            <motion.div key="reset" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-              <div className="text-center mb-8">
-                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
-                <h2 className="text-xl font-bold text-gray-800">New Password</h2>
-                <p className="text-sm text-gray-500 mt-2">Create a secure password for your account.</p>
+            <motion.div key="reset" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white px-6 py-12 sm:p-8 sm:rounded-2xl sm:shadow-2xl h-full sm:h-auto flex flex-col overflow-y-auto">
+              <div className="text-center mb-10">
+                <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-6 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-2xl font-bold text-gray-800">New Password</h2>
+                <p className="text-base text-gray-500 mt-2">Create a secure password for your account.</p>
               </div>
 
               <form onSubmit={handleResetPassword} className="space-y-6">
@@ -1210,11 +1232,11 @@ function App() {
 
 
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
-            <SidebarItem icon={FileText} label={sidebarOpen ? "Loan Management" : ""} id="loans" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
-            <SidebarItem icon={TrendingUp} label={sidebarOpen ? "Reports" : ""} id="reports" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
-            <SidebarItem icon={Users} label={sidebarOpen ? "Members" : ""} id="members" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
-            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
+            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={FileText} label={sidebarOpen ? "Loan Management" : ""} id="loans" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={TrendingUp} label={sidebarOpen ? "Reports" : ""} id="reports" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={Users} label={sidebarOpen ? "Members" : ""} id="members" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
           </nav>
 
           <div className="p-3 border-t border-brand-800/30 mt-auto">
@@ -1234,7 +1256,7 @@ function App() {
               </div>
             )}
             <button onClick={handleLogout} className="flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-red-500/20 text-red-100 transition-colors font-bold text-xs">
-              <LogOut size={18} />
+              <LogOut size={18} className="text-white" />
               {sidebarOpen && <span>Logout</span>}
             </button>
           </div>
@@ -1242,7 +1264,7 @@ function App() {
 
         {/* Content Area */}
         <main className="flex-1 flex flex-col h-full overflow-hidden">
-          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
+          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 shrink-0">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -1272,7 +1294,7 @@ function App() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
+                      className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:mt-2 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
                     >
                       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                         <h3 className="text-[10px] font-black text-gray-800 uppercase tracking-widest">Notifications</h3>
@@ -1283,7 +1305,7 @@ function App() {
                           Mark all as read
                         </button>
                       </div>
-                      <div className="max-h-[400px] overflow-y-auto">
+                      <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto">
                         {notifications.map(n => (
                           <div key={n.id} className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${n.unread ? 'bg-brand-50/30' : ''}`}>
                             <p className="text-xs font-black text-gray-800 mb-1 flex items-center justify-between">
@@ -1303,16 +1325,16 @@ function App() {
               {user?.role === 'ADMIN' && (
                 <button
                   onClick={() => setShowAnnouncementModal(true)}
-                  className="px-4 py-2 bg-brand-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brand-800 transition-all active:scale-95 flex items-center gap-2"
+                  className="px-3 sm:px-4 py-2 bg-brand-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brand-800 transition-all active:scale-95 flex items-center gap-2"
                 >
-                  <Plus size={14} /> New Announcement
+                  <Plus size={14} /> <span className="hidden sm:inline">New Announcement</span>
                 </button>
               )}
 
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-8 font-sans">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 font-sans">
             {view === 'dashboard' && (
               <div className="space-y-8 max-w-7xl mx-auto">
                 <div className="flex justify-between items-end">
@@ -1365,9 +1387,9 @@ function App() {
                           <thead className="bg-gray-50 border-b border-gray-100">
                             <tr>
                               <th className="table-header-cell">Member</th>
-                              <th className="table-header-cell">Loan Type</th>
+                              <th className="table-header-cell hidden md:table-cell">Loan Type</th>
                               <th className="table-header-cell text-right">Amount</th>
-                              <th className="table-header-cell">Status</th>
+                              <th className="table-header-cell hidden sm:table-cell">Status</th>
                               <th className="table-header-cell">Action</th>
                             </tr>
                           </thead>
@@ -1375,12 +1397,12 @@ function App() {
                             {loans.slice(0, 5).map((loan) => (
                               <tr key={loan.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4 font-bold text-gray-800">{loan.member_name}</td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 hidden md:table-cell">
                                   <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] font-bold text-gray-500 mr-2 uppercase">{loan.type}</span>
                                   <span className="text-gray-500 text-xs hidden sm:inline">{LOAN_TYPES[loan.type]}</span>
                                 </td>
                                 <td className="px-6 py-4 text-right font-mono font-bold text-gray-700">₱ {loan.amount.toLocaleString()}</td>
-                                <td className="px-6 py-4">
+                                <td className="px-6 py-4 hidden sm:table-cell">
                                   <span className={`text-[10px] font-black uppercase tracking-tighter ${loan.status === 'Pending' ? 'text-brand-500' :
                                       loan.status === 'Active' ? 'text-brand-500' :
                                         loan.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
@@ -1581,8 +1603,8 @@ function App() {
                       <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
                           <th className="table-header-cell">Name</th>
-                          <th className="table-header-cell">Email</th>
-                          <th className="table-header-cell">Role</th>
+                          <th className="table-header-cell hidden lg:table-cell">Email</th>
+                          <th className="table-header-cell hidden md:table-cell">Role</th>
                           <th className="table-header-cell">Status</th>
                           <th className="table-header-cell text-right">Actions</th>
                         </tr>
@@ -1598,8 +1620,8 @@ function App() {
                                 <span className="font-bold text-gray-800">{m.name}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-gray-600">{m.email}</td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 text-gray-600 hidden lg:table-cell">{m.email}</td>
+                            <td className="px-6 py-4 hidden md:table-cell">
                               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{m.role}</span>
                             </td>
                             <td className="px-6 py-4">
@@ -2178,8 +2200,8 @@ function App() {
           </div>
 
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "My Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
-            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} />
+            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "My Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
           </nav>
 
           <div className="p-3 border-t border-brand-800/30 mt-auto">
@@ -2199,14 +2221,14 @@ function App() {
               </div>
             )}
             <button onClick={handleLogout} className="flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-red-500/20 text-red-100 transition-colors font-bold text-xs">
-              <LogOut size={18} />
+              <LogOut size={18} className="text-white" />
               {sidebarOpen && <span>Logout</span>}
             </button>
           </div>
         </aside>
 
         <main className="flex-1 flex flex-col h-full overflow-hidden">
-          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
+          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 shrink-0">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -2236,7 +2258,7 @@ function App() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
+                      className="fixed inset-x-4 top-20 sm:absolute sm:inset-auto sm:right-0 sm:mt-2 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
                     >
                       <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                         <h3 className="text-[10px] font-black text-gray-800 uppercase tracking-widest">Notifications</h3>
@@ -2247,7 +2269,7 @@ function App() {
                           Mark all as read
                         </button>
                       </div>
-                      <div className="max-h-[400px] overflow-y-auto">
+                      <div className="max-h-[60vh] sm:max-h-[400px] overflow-y-auto">
                         {notifications.map(n => (
                           <div key={n.id} className={`p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${n.unread ? 'bg-brand-50/30' : ''}`}>
                             <p className="text-xs font-black text-gray-800 mb-1 flex items-center justify-between">
@@ -2266,15 +2288,15 @@ function App() {
 
               <button
                 onClick={() => setShowRequestModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-brand-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brand-800 transition-all active:scale-95"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-brand-800 transition-all active:scale-95"
               >
-                <Plus size={14} /> New Loan Request
+                <Plus size={14} /> <span className="hidden sm:inline">New Loan Request</span>
               </button>
 
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-8 font-sans">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8 font-sans">
             {view === 'dashboard' && (
               <div className="max-w-7xl mx-auto space-y-8">
               <div>
@@ -2315,7 +2337,7 @@ function App() {
                           <tr>
                             <th className="table-header-cell">Date</th>
                             <th className="table-header-cell">Activity</th>
-                            <th className="table-header-cell text-right">Amount</th>
+                            <th className="table-header-cell text-right hidden xs:table-cell">Amount</th>
                             <th className="table-header-cell">Status</th>
                           </tr>
                         </thead>
@@ -2324,7 +2346,7 @@ function App() {
                             <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.created_at ? new Date(p.created_at).toLocaleDateString() : p.date}</td>
                               <td className="px-6 py-4 font-bold text-gray-800 underline decoration-brand-100 underline-offset-4">Loan Payment ({p.loan_type})</td>
-                              <td className="px-6 py-4 text-right font-mono font-bold text-brand-700">₱ {p.amount.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-right font-mono font-bold text-brand-700 hidden xs:table-cell">₱ {p.amount.toLocaleString()}</td>
                               <td className="px-6 py-4">
                                 <span className="text-[10px] font-black text-brand-600 uppercase tracking-tighter">Verified</span>
                               </td>
@@ -2334,7 +2356,7 @@ function App() {
                             <tr key={l.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.created_at ? new Date(l.created_at).toLocaleDateString() : l.date}</td>
                               <td className="px-6 py-4 font-bold text-gray-800">Loan: {l.type}</td>
-                              <td className="px-6 py-4 text-right font-mono font-bold text-gray-900">₱ {l.amount.toLocaleString()}</td>
+                              <td className="px-6 py-4 text-right font-mono font-bold text-gray-900 hidden xs:table-cell">₱ {l.amount.toLocaleString()}</td>
                               <td className="px-6 py-4">
                                 <span className={`text-[10px] font-black uppercase tracking-tighter ${l.status === 'Rejected' ? 'text-red-500' :
                                     l.status === 'Pending' ? 'text-brand-400' : 'text-brand-500'

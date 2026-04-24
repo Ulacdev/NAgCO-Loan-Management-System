@@ -31,7 +31,12 @@ h1, h2, h3, h4 {
   @apply h-screen overflow-hidden bg-gray-50;
   width: 100%;
   max-width: 100vw;
-  zoom: 1.1;
+}
+
+@media (min-width: 768px) {
+  .pov-110-container {
+    zoom: 1.1;
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {

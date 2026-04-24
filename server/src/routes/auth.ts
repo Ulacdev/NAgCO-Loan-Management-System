@@ -188,7 +188,7 @@ router.post('/register', async (req: Request, res: Response) => {
 // POST /api/auth/forgot-password
 router.post('/forgot-password', async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
+    const { email, frontendUrl } = req.body;
     const crypto = require('crypto');
 
     if (!email) {
@@ -222,7 +222,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     // Send email with link
     const { sendResetLinkEmail } = require('../emailService');
-    await sendResetLinkEmail(user.email, user.name, token);
+    await sendResetLinkEmail(user.email, user.name, token, frontendUrl);
 
     res.json({ message: 'Password reset link sent successfully.' });
   } catch (err) {
