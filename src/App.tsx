@@ -39,7 +39,10 @@ import {
   Camera,
   Eye,
   EyeOff,
-  Trash2
+  Trash2,
+  CheckCircle,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -145,7 +148,7 @@ const StatCard = ({ title, value, icon: Icon, borderColor = "border-green-500" }
   </div>
 );
 
-export default function App() {
+function App() {
   const [user, setUser] = useState<UserData | null>(() => {
     const saved = localStorage.getItem('nagco_user');
     return saved ? JSON.parse(saved) : null;
@@ -158,9 +161,19 @@ export default function App() {
     if (params.get('view') === 'reset' && params.get('token')) return 'reset';
     return 'login';
   });
-  const [otpCode, setOtpCode] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
   const [resetToken] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
   const [newPassword, setNewPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
@@ -198,6 +211,10 @@ export default function App() {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+  const [showPasswordTooltip, setShowPasswordTooltip] = useState(false);
+  const [showResetTooltip, setShowResetTooltip] = useState(false);
+  const [showProfileTooltip, setShowProfileTooltip] = useState(false);
+  const [showSettingsTooltip, setShowSettingsTooltip] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -216,7 +233,7 @@ export default function App() {
     e.preventDefault();
     setLoginLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: loginPass }),
@@ -233,11 +250,12 @@ export default function App() {
         }
         setUser(data.user);
         setView('dashboard');
+        addToast(`Welcome back, ${data.user.name}!`, 'success');
       } else {
-        alert(data.error || 'Login failed');
+        addToast(data.error || 'Login failed', 'error');
       }
     } catch (err) {
-      alert('Network error. Is the server running?');
+      addToast('Network error. Is the server running?', 'error');
     } finally {
       setLoginLoading(false);
     }
@@ -247,7 +265,7 @@ export default function App() {
     e.preventDefault();
     setOtpLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/verify-otp', {
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, otp: otpCode }),
@@ -258,11 +276,12 @@ export default function App() {
         setView('dashboard');
         setLoginSubView('login');
         setOtpCode('');
+        addToast(`Login successful! Welcome back, ${data.user.name}!`, 'success');
       } else {
-        alert(data.error || 'Verification failed');
+        addToast(data.error || 'Verification failed', "error");
       }
     } catch (err) {
-      alert('Connection error. Please try again.');
+      addToast('Connection error. Please try again.', "error");
     } finally {
       setOtpLoading(false);
     }
@@ -271,11 +290,17 @@ export default function App() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (registerPassword !== registerConfirmPassword) {
-      alert('Passwords do not match');
+      addToast('Passwords do not match', "error");
+      return;
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$/;
+    if (!passwordRegex.test(registerPassword)) {
+      addToast('Password must be at least 8 characters long and include uppercase, lowercase, number, and special character (!@#$%^&*)', "error");
       return;
     }
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -287,7 +312,7 @@ export default function App() {
       });
       const data = await response.json();
       if (response.ok) {
-        alert('Account created! Please wait for an administrator to approve your registration.');
+        addToast('Request completed! Please wait for administrator approval for your account.', "success");
         setLoginSubView('login');
         // Clear registration states
         setRegisterFullName('');
@@ -296,37 +321,40 @@ export default function App() {
         setRegisterPassword('');
         setRegisterConfirmPassword('');
       } else {
-        alert(data.error || 'Registration failed');
+        addToast(data.error || 'Registration failed', "error");
       }
     } catch (err) {
-      alert('Network error. Is the server running?');
+      addToast('Network error. Is the server running?', "error");
     }
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('nagco_user');
+    localStorage.removeItem('nagco_token');
     setUser(null);
     setView('login');
     setLoginSubView('login');
+    addToast('Successfully logged out', 'success');
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/forgot-password', {
+      const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: recoveryEmail }),
       });
       const data = await response.json();
       if (response.ok) {
-        alert('Password reset link sent! Please check your email.');
+        addToast('Password reset link sent! Please check your email.', "success");
         setLoginSubView('login');
       } else {
-        alert(data.message || 'Error sending reset link.');
+        addToast(data.message || 'Error sending reset link.', "error");
       }
     } catch (err) {
-      alert('Network error. Is the server running?');
+      addToast('Network error. Is the server running?', "error");
     } finally {
       setForgotLoading(false);
     }
@@ -336,22 +364,22 @@ export default function App() {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/auth/reset-password', {
+      const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: resetToken, newPassword }),
       });
       const data = await response.json();
       if (response.ok) {
-        alert('Password reset successful! You can now log in.');
+        addToast('Password reset successful! You can now log in.', "success");
         setLoginSubView('login');
         window.history.replaceState({}, document.title, window.location.pathname);
         setNewPassword('');
       } else {
-        alert(data.error || 'Failed to reset password.');
+        addToast(data.error || 'Failed to reset password.', "error");
       }
     } catch (err) {
-      alert('Network error. Is the server running?');
+      addToast('Network error. Is the server running?', "error");
     } finally {
       setForgotLoading(false);
     }
@@ -361,23 +389,23 @@ export default function App() {
     if (user) {
       const fetchData = async () => {
         try {
-          const membersRes = await fetch('http://localhost:3001/api/members');
+          const membersRes = await fetch('/api/members');
           const membersData = await membersRes.json();
           if (membersRes.ok) setMembers(membersData.members);
 
-          const loansRes = await fetch('http://localhost:3001/api/loans');
+          const loansRes = await fetch('/api/loans');
           const loansData = await loansRes.json();
           if (loansRes.ok) setLoans(loansData.loans);
 
-          const paymentsRes = await fetch('http://localhost:3001/api/payments');
+          const paymentsRes = await fetch('/api/payments');
           const paymentsData = await paymentsRes.json();
           if (paymentsRes.ok) setPayments(paymentsData.payments);
 
-          const annRes = await fetch('http://localhost:3001/api/announcements');
+          const annRes = await fetch('/api/announcements');
           const annData = await annRes.json();
           if (annRes.ok) setAnnouncements(annData.announcements);
 
-          const notifRes = await fetch(`http://localhost:3001/api/notifications/${user.id}`);
+          const notifRes = await fetch(`/api/notifications/${user.id}`);
           const notifData = await notifRes.json();
           if (notifRes.ok) {
             const formattedNotifs = notifData.notifications.map((n: any) => ({
@@ -399,7 +427,7 @@ export default function App() {
 
   const handleUpdateMemberStatus = async (id: string, status: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/members/${id}/status`, {
+      const response = await fetch(`/api/members/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -407,44 +435,44 @@ export default function App() {
       if (response.ok) {
         setMembers(prev => prev.map(m => m.id === id ? { ...m, status: status as any } : m));
       } else {
-        alert('Failed to update status');
+        addToast('Failed to update status', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
   const handleDeleteMember = async (id: string) => {
     if (!confirm('Are you sure you want to delete this member?')) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/members/${id}`, {
+      const response = await fetch(`/api/members/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
         setMembers(prev => prev.filter(m => m.id !== id));
       } else {
-        alert('Failed to delete member');
+        addToast('Failed to delete member', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
   const handleUpdateLoanStatus = async (id: string, status: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/loans/${id}/status`, {
+      const response = await fetch(`/api/loans/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
       if (response.ok) {
         setLoans(prev => prev.map(l => l.id === id ? { ...l, status } : l));
-        alert(`Loan ${status === 'Active' ? 'approved' : 'rejected'} successfully.`);
+        addToast(`Loan ${status === 'Active' ? 'approved' : 'rejected'} successfully.`, "error");
       } else {
-        alert('Failed to update loan status');
+        addToast('Failed to update loan status', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
@@ -452,7 +480,7 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/members/${user.id}/profile`, {
+      const response = await fetch(`/api/members/${user.id}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -465,12 +493,12 @@ export default function App() {
       const data = await response.json();
       if (response.ok) {
         setUser(data.user);
-        alert('Profile updated successfully!');
+        addToast('Profile updated successfully!', "success");
       } else {
-        alert(data.error || 'Failed to update profile');
+        addToast(data.error || 'Failed to update profile', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
@@ -478,21 +506,21 @@ export default function App() {
     e.preventDefault();
     if (!user) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/members/${user.id}/password`, {
+      const response = await fetch(`/api/members/${user.id}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await response.json();
       if (response.ok) {
-        alert('Password changed successfully!');
+        addToast('Password changed successfully!', "success");
         setCurrentPassword('');
         setNewPassword('');
       } else {
-        alert(data.error || 'Failed to change password');
+        addToast(data.error || 'Failed to change password', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
@@ -506,35 +534,35 @@ export default function App() {
     const endDate = formData.get('endDate') as string;
 
     try {
-      const response = await fetch('http://localhost:3001/api/announcements', {
+      const response = await fetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, content, start_date: startDate, end_date: endDate }),
       });
       if (response.ok) {
-        alert('Notice posted successfully!');
+        addToast('Notice posted successfully!', "success");
         setShowAnnouncementModal(false);
       } else {
-        alert('Failed to post notice');
+        addToast('Failed to post notice', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
   const handleDeleteAnnouncement = async (id: string) => {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
     try {
-      const response = await fetch(`http://localhost:3001/api/announcements/${id}`, {
+      const response = await fetch(`/api/announcements/${id}`, {
         method: 'DELETE',
       });
       if (response.ok) {
         setAnnouncements(prev => prev.filter(a => a.id !== id));
       } else {
-        alert('Failed to delete announcement');
+        addToast('Failed to delete announcement', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
@@ -549,7 +577,7 @@ export default function App() {
     const member = members.find(m => m.id === memberId);
 
     try {
-      const response = await fetch('http://localhost:3001/api/payments', {
+      const response = await fetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -560,24 +588,24 @@ export default function App() {
         }),
       });
       if (response.ok) {
-        alert('Payment recorded successfully!');
+        addToast('Payment recorded successfully!', "success");
         // Refresh payments
-        const pRes = await fetch('http://localhost:3001/api/payments');
+        const pRes = await fetch('/api/payments');
         const pData = await pRes.json();
         setPayments(pData.payments);
         form.reset();
       } else {
-        alert('Failed to record payment');
+        addToast('Failed to record payment', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
   const handleLoanRequest = async () => {
     if (!calculation || !user) return;
     try {
-      const response = await fetch('http://localhost:3001/api/loans', {
+      const response = await fetch('/api/loans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -588,20 +616,20 @@ export default function App() {
         }),
       });
       if (response.ok) {
-        alert('Loan request submitted successfully!');
+        addToast('Loan request submitted successfully!', "success");
         setShowRequestModal(false);
         setCalculation(null);
         setRequestAmount('');
         setRequestType('');
         // Refresh loans
-        const lRes = await fetch('http://localhost:3001/api/loans');
+        const lRes = await fetch('/api/loans');
         const lData = await lRes.json();
         setLoans(lData.loans);
       } else {
-        alert('Failed to submit loan request');
+        addToast('Failed to submit loan request', "error");
       }
     } catch (err) {
-      alert('Network error');
+      addToast('Network error', "error");
     }
   };
 
@@ -609,7 +637,7 @@ export default function App() {
     try {
       const unreadNotifs = notifications.filter(n => n.unread);
       await Promise.all(
-        unreadNotifs.map(n => fetch(`http://localhost:3001/api/notifications/${n.id}/read`, { method: 'PUT' }))
+        unreadNotifs.map(n => fetch(`/api/notifications/${n.id}/read`, { method: 'PUT' }))
       );
       setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
     } catch (error) {
@@ -619,7 +647,7 @@ export default function App() {
 
   const handleGenerateReport = () => {
     const doc = new jsPDF();
-    const primaryColor = [46, 125, 50]; // #2E7D32
+    const primaryColor: [number, number, number] = [46, 125, 50]; // #2E7D32
 
     // Header
     doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
@@ -723,318 +751,425 @@ export default function App() {
 
   if (view === 'login') {
     return (
-      <div className="min-h-screen bg-[#2E7D32] flex items-center justify-center p-4 font-sans relative overflow-hidden">
-        {/* Background Decorations */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-black rounded-full blur-3xl"></div>
-        </div>
+      <>
+    <div className="min-h-screen bg-[#4CAF50] flex items-center justify-center p-4 font-sans relative overflow-hidden">
 
-        <AnimatePresence>
-          {loginLoading && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-[#2E7D32] flex flex-col items-center justify-center"
-            >
-              <div className="relative">
-                <motion.div 
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                  className="w-24 h-24 border-4 border-white/20 border-t-white rounded-full"
-                />
-                <motion.div 
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="absolute inset-0 flex items-center justify-center"
-                >
-                  <img src="/logo.png" alt="Logo" className="w-12 h-12" />
-                </motion.div>
-              </div>
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="mt-8 text-center"
+
+      <AnimatePresence>
+        {loginLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-[#2E7D32] flex flex-col items-center justify-center"
+          >
+            <div className="relative">
+              <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-24 h-24 border-4 border-white/20 border-t-white rounded-full"
+              />
+              <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute inset-0 flex items-center justify-center"
               >
-                <h3 className="text-white font-black text-xl uppercase tracking-widest mb-2">Securing Connection</h3>
-                <div className="flex gap-1 justify-center">
-                  {[0, 1, 2].map(i => (
-                    <motion.div
-                      key={i}
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                      className="w-2 h-2 bg-white rounded-full"
-                    />
-                  ))}
-                </div>
+                <img src="/logo.png" alt="Logo" className="w-12 h-12" />
               </motion.div>
+            </div>
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="mt-8 text-center"
+            >
+              <h3 className="text-white font-black text-xl uppercase tracking-widest mb-2">Securing Connection</h3>
+              <div className="flex gap-1 justify-center">
+                {[0, 1, 2].map(i => (
+                  <motion.div
+                    key={i}
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                    className="w-2 h-2 bg-white rounded-full"
+                  />
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="w-full max-w-md relative z-10">
+        <AnimatePresence mode="wait">
+          {loginSubView === 'login' && (
+            <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-6 rounded-2xl shadow-2xl">
+                <div className="text-center mb-5">
+                  <img src="/logo.png" alt="NAgCO" className="w-20 h-20 mx-auto mb-3 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                  <h1 className="text-2xl font-bold text-[#2E7D32] leading-tight mb-1">NAgCO Loan Management System</h1>
+                  <p className="text-sm text-gray-500 font-medium">Napilihan Agriculture Cooperative</p>
+                </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Email or Username</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input 
+                      type="text" 
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" 
+                      placeholder="Enter email or username" 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Password</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      value={loginPass}
+                      onChange={(e) => setLoginPass(e.target.value)}
+                      className="w-full pl-12 pr-12 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" 
+                      placeholder="Enter password" 
+                      required 
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32] hover:text-[#1B5E20]">
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => setLoginSubView('forgot')} className="text-xs font-semibold text-[#2E7D32] hover:underline">Forgot Password?</button>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-2">
+                  Log In
+                </button>
+
+                <div className="text-center pt-4">
+                  <p className="text-xs font-medium text-gray-600">
+                    Don't have an account? <button type="button" onClick={() => setLoginSubView('create')} className="text-[#2E7D32] font-bold hover:underline">Create Account</button>
+                  </p>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {loginSubView === 'otp' && (
+            <motion.div key="otp" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="bg-white p-8 rounded-2xl shadow-2xl">
+              <div className="text-center mb-8">
+                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-xl font-bold text-gray-800">Verify Identity</h2>
+                <p className="text-sm text-gray-500 mt-2">We've sent a 6-digit code to your email.</p>
+              </div>
+
+              <form onSubmit={handleVerifyOTP} className="space-y-6">
+                <div className="flex justify-center gap-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center py-4 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2E7D32] outline-none text-2xl font-bold tracking-[0.5em] text-[#2E7D32] transition-all"
+                    placeholder="000000"
+                    required
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={otpLoading || otpCode.length !== 6}
+                  className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {otpLoading ? "Verifying..." : "Verify & Continue"}
+                </button>
+
+                <div className="text-center">
+                  <button 
+                    type="button" 
+                    onClick={() => setLoginSubView('login')}
+                    className="text-xs font-bold text-[#2E7D32] hover:underline"
+                  >
+                    Cancel and Go Back
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {loginSubView === 'create' && (
+            <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="bg-white p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="text-center mb-6">
+                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h1 className="text-2xl font-bold text-[#2E7D32] mb-1">Create Account</h1>
+                <p className="text-sm text-gray-500">Join our cooperative today</p>
+              </div>
+
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Full Name</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input type="text" value={registerFullName} onChange={(e) => setRegisterFullName(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" placeholder="Enter your full name" required />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Username</label>
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input type="text" value={registerUsername} onChange={(e) => setRegisterUsername(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" placeholder="Choose a username" required />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Email Address</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input type="email" value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" placeholder="Enter your email" required />
+                  </div>
+                </div>
+                <div className="space-y-1.5 relative">
+                  <label className="text-xs font-semibold text-gray-700 ml-1 flex items-center gap-1">
+                    Password
+                    <AlertCircle
+                      size={12}
+                      className="text-gray-500 hover:text-gray-700 transition-colors cursor-help"
+                      onMouseEnter={() => setShowPasswordTooltip(true)}
+                      onMouseLeave={() => setShowPasswordTooltip(false)}
+                    />
+                  </label>
+                  {showPasswordTooltip && (
+                    <div className="absolute top-6 left-1 bg-white text-black text-xs rounded p-2 z-10 w-64 shadow-lg border">
+                      <p className="font-bold mb-1 text-green-600">Password Requirements:</p>
+                      <div className="space-y-1">
+                        <div className={`flex items-center gap-1 ${registerPassword.length >= 8 ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 8 characters
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[A-Z]/.test(registerPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 uppercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[a-z]/.test(registerPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 lowercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${/\d/.test(registerPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 number (0-9)
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[!@#$%^&*]/.test(registerPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 special character (!@#$%^&*)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input type={showRegisterPassword ? "text" : "password"} value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} className="w-full pl-12 pr-12 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" placeholder="••••••••" required />
+                    <button type="button" onClick={() => setShowRegisterPassword(!showRegisterPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32] hover:text-[#1B5E20] transition-colors">{showRegisterPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Confirm Password</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input type={showConfirmPassword ? "text" : "password"} value={registerConfirmPassword} onChange={(e) => setRegisterConfirmPassword(e.target.value)} className="w-full pl-12 pr-12 py-3 bg-white border border-gray-200 rounded-lg focus:ring-1 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" placeholder="••••••••" required />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32] hover:text-[#1B5E20] transition-colors">{showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 hidden">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Password Requirements:</p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    <div className={`flex items-center gap-2 text-[10px] font-bold ${registerPassword.length >= 8 ? 'text-green-600' : 'text-gray-400'}`}>
+                      {registerPassword.length >= 8 ? <Check size={10} strokeWidth={4} /> : <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-200" />}
+                      At least 8 characters
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] font-bold ${/[A-Z]/.test(registerPassword) ? 'text-green-600' : 'text-gray-400'}`}>
+                      {/[A-Z]/.test(registerPassword) ? <Check size={10} strokeWidth={4} /> : <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-200" />}
+                      At least 1 uppercase letter
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] font-bold ${/[a-z]/.test(registerPassword) ? 'text-green-600' : 'text-gray-400'}`}>
+                      {/[a-z]/.test(registerPassword) ? <Check size={10} strokeWidth={4} /> : <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-200" />}
+                      At least 1 lowercase letter
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] font-bold ${/\d/.test(registerPassword) ? 'text-green-600' : 'text-gray-400'}`}>
+                      {/\d/.test(registerPassword) ? <Check size={10} strokeWidth={4} /> : <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-200" />}
+                      At least 1 number (0-9)
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] font-bold ${/[!@#$%^&*]/.test(registerPassword) ? 'text-green-600' : 'text-gray-400'}`}>
+                      {/[!@#$%^&*]/.test(registerPassword) ? <Check size={10} strokeWidth={4} /> : <div className="w-2.5 h-2.5 rounded-full border-2 border-gray-200" />}
+                      At least 1 special character (!@#$%^&*)
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all active:scale-[0.98] mt-2">
+                  Create Account
+                </button>
+                <div className="text-center pt-4">
+                  <button type="button" onClick={() => setLoginSubView('login')} className="text-xs font-bold text-[#2E7D32] hover:underline">
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {loginSubView === 'forgot' && (
+            <motion.div key="forgot" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-8 rounded-2xl shadow-2xl">
+              <div className="text-center mb-8">
+                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-xl font-bold text-gray-800">Password Recovery</h2>
+                <p className="text-sm text-gray-500 mt-2">Enter your email to receive a reset link.</p>
+              </div>
+
+              <form onSubmit={handleForgotPassword} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-700 ml-1">Email Address</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input 
+                      type="email" 
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" 
+                      placeholder="name@example.com" 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={forgotLoading}
+                  className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {forgotLoading ? "Sending..." : "Send Reset Link"}
+                </button>
+
+                <div className="text-center">
+                  <button 
+                    type="button" 
+                    onClick={() => setLoginSubView('login')}
+                    className="text-xs font-bold text-[#2E7D32] hover:underline"
+                  >
+                    Back to Login
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          )}
+
+          {loginSubView === 'reset' && (
+            <motion.div key="reset" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white p-8 rounded-2xl shadow-2xl">
+              <div className="text-center mb-8">
+                <img src="/logo.png" alt="NAgCO" className="w-16 h-16 mx-auto mb-4 rounded-full border border-gray-100 shadow-sm object-contain p-1 bg-white" />
+                <h2 className="text-xl font-bold text-gray-800">New Password</h2>
+                <p className="text-sm text-gray-500 mt-2">Create a secure password for your account.</p>
+              </div>
+
+              <form onSubmit={handleResetPassword} className="space-y-6">
+                <div className="space-y-2 relative">
+                  <label className="text-xs font-semibold text-gray-700 ml-1 flex items-center gap-1">
+                    New Password
+                    <AlertCircle
+                      size={12}
+                      className="text-gray-500 hover:text-gray-700 transition-colors cursor-help"
+                      onMouseEnter={() => setShowResetTooltip(true)}
+                      onMouseLeave={() => setShowResetTooltip(false)}
+                    />
+                  </label>
+                  {showResetTooltip && (
+                    <div className="absolute top-6 left-1 bg-white text-black text-xs rounded p-2 z-10 w-64 shadow-lg border">
+                      <p className="font-bold mb-1 text-green-600">Password Requirements:</p>
+                      <div className="space-y-1">
+                        <div className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 8 characters
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 uppercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 lowercase letter
+                        </div>
+                        <div className={`flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 number (0-9)
+                        </div>
+                        <div className={`flex items-center gap-1 ${/[!@#$%^&*]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                          <Check size={8} /> At least 1 special character (!@#$%^&*)
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32] transition-colors" size={16} />
+                    <input 
+                      type="password" 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-12 pr-5 py-4 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#2E7D32] outline-none text-sm text-gray-700 transition-all" 
+                      placeholder="••••••••" 
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={forgotLoading}
+                  className="w-full py-3.5 bg-[#2E7D32] text-white rounded-lg font-bold text-sm shadow-md hover:bg-[#1B5E20] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {forgotLoading ? "Resetting..." : "Update Password"}
+                </button>
+              </form>
             </motion.div>
           )}
         </AnimatePresence>
-
-        <div className="w-full max-w-md relative z-10">
-          <AnimatePresence mode="wait">
-            {loginSubView === 'login' && (
-              <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-                <div className="text-center mb-8">
-                  <img src="/logo.png" alt="NAgCO" className="w-32 h-32 mx-auto mb-6" />
-                  <h1 className="text-3xl font-bold text-[#2E7D32] leading-tight mb-2">NAgCO Loan Management System</h1>
-                  <p className="text-lg text-gray-900 font-medium">Napilihan Agriculture Cooperative</p>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-6">
-                  <div>
-                    <label className="block text-lg font-medium text-gray-900 mb-2">Email or Username</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={20} />
-                      <input
-                        type="text"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                        placeholder="Enter email or username"
-                        className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32] text-lg transition-all"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-lg font-medium text-gray-900 mb-2">Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={20} />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={loginPass}
-                        onChange={(e) => setLoginPass(e.target.value)}
-                        placeholder="Enter password"
-                        className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32] text-lg transition-all"
-                        required
-                      />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32]">
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <button type="button" onClick={() => setLoginSubView('forgot')} className="text-[#2E7D32] font-bold text-lg hover:underline">Forgot Password?</button>
-                  </div>
-
-                  <button type="submit" className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold text-xl hover:bg-[#1B5E20] transition-all shadow-md active:scale-[0.98]">
-                    Log In
-                  </button>
-                </form>
-
-                <p className="text-center mt-8 text-lg font-medium">
-                  Don't have an account? <button onClick={() => setLoginSubView('create')} className="text-[#2E7D32] font-bold hover:underline">Create Account</button>
-                </p>
-              </motion.div>
-            )}
-
-            {loginSubView === 'otp' && (
-              <motion.div key="otp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-                <div className="text-center mb-8">
-                  <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-brand-200">
-                    <ShieldCheck className="text-brand-600" size={40} />
-                  </div>
-                  <h1 className="text-2xl font-black text-brand-800 uppercase tracking-tight mb-2">Security Verification</h1>
-                  <p className="text-sm text-gray-500 font-medium">
-                    We sent a 6-digit security code to <br />
-                    <span className="text-brand-700 font-black">{loginEmail}</span>
-                  </p>
-                </div>
-                <form onSubmit={handleVerifyOTP} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-black text-gray-800 uppercase tracking-widest mb-3 text-center">Enter Code</label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="000000"
-                      className="w-full text-center text-4xl font-black tracking-[1rem] py-4 border-2 border-brand-100 rounded-2xl outline-none focus:ring-4 focus:ring-brand-500/20 focus:border-brand-500 transition-all bg-brand-50/30"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                  <button 
-                    type="submit" 
-                    disabled={otpLoading || otpCode.length < 6} 
-                    className="w-full py-4 bg-brand-700 text-white rounded-xl font-black text-lg uppercase tracking-widest hover:bg-brand-800 transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:active:scale-100"
-                  >
-                    {otpLoading ? 'Verifying...' : 'Verify & Log In'}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => { setLoginSubView('login'); setOtpCode(''); }} 
-                    className="w-full text-gray-400 font-black uppercase text-xs tracking-widest hover:text-brand-700 transition-colors py-2"
-                  >
-                    Back to login
-                  </button>
-                </form>
-              </motion.div>
-            )}
-
-            {loginSubView === 'forgot' && (
-              <motion.div key="forgot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-                <div className="text-center mb-8">
-                  <img src="/logo.png" alt="NAgCO" className="w-24 h-24 mx-auto mb-4" />
-                  <h1 className="text-2xl font-bold text-[#2E7D32] uppercase mb-2">Reset Password</h1>
-                  <p className="text-gray-600">Enter your email to receive recovery instructions.</p>
-                </div>
-                <form onSubmit={handleForgotPassword} className="space-y-6">
-                  <div>
-                    <label className="block font-bold mb-2">Email Address</label>
-                    <input
-                      type="email"
-                      value={recoveryEmail}
-                      onChange={(e) => setRecoveryEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      className="w-full p-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]"
-                      required
-                    />
-                  </div>
-                  <button type="submit" disabled={forgotLoading} className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold hover:bg-[#1B5E20]">
-                    {forgotLoading ? 'Sending...' : 'Send Reset Link'}
-                  </button>
-                  <button type="button" onClick={() => setLoginSubView('login')} className="w-full text-gray-500 font-bold hover:text-[#2E7D32] uppercase py-2">Back to login</button>
-                </form>
-              </motion.div>
-            )}
-
-            {loginSubView === 'reset' && (
-              <motion.div key="reset" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-                <div className="text-center mb-8">
-                  <img src="/logo.png" alt="NAgCO" className="w-24 h-24 mx-auto mb-4" />
-                  <h1 className="text-2xl font-bold text-[#2E7D32] uppercase mb-2">New Password</h1>
-                  <p className="text-gray-600">Enter your new password below.</p>
-                </div>
-                <form onSubmit={handleResetPassword} className="space-y-6">
-                  <div>
-                    <label className="block font-bold mb-2">New Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={20} />
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32] text-lg transition-all"
-                        required
-                      />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32]">
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
-                  </div>
-                  <button type="submit" disabled={forgotLoading} className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold hover:bg-[#1B5E20]">
-                    {forgotLoading ? 'Saving...' : 'Reset Password'}
-                  </button>
-                  <button type="button" onClick={() => { setLoginSubView('login'); window.history.replaceState({}, document.title, window.location.pathname); }} className="w-full text-gray-500 font-bold hover:text-[#2E7D32] uppercase py-2">Back to login</button>
-                </form>
-              </motion.div>
-            )}
-
-            {loginSubView === 'create' && (
-              <motion.div key="create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="bg-white p-8 rounded-2xl shadow-2xl">
-                <div className="text-center mb-8">
-                  <img src="/logo.png" alt="NAgCO" className="w-32 h-32 mx-auto mb-6" />
-                  <h1 className="text-2xl font-bold text-[#2E7D32] uppercase mb-1">Create Account</h1>
-                  <p className="text-base font-medium text-gray-800">Join Napilihan Agriculture Cooperative</p>
-                </div>
-                <form className="space-y-4" onSubmit={handleRegister}>
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-900 mb-1">Full Name</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={18} />
-                      <input 
-                        type="text" 
-                        value={registerFullName}
-                        onChange={(e) => setRegisterFullName(e.target.value)}
-                        placeholder="Enter full name" 
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-900 mb-1">Username</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={18} />
-                      <input 
-                        type="text" 
-                        value={registerUsername}
-                        onChange={(e) => setRegisterUsername(e.target.value)}
-                        placeholder="Enter username" 
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-900 mb-1">Email Address</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={18} />
-                      <input 
-                        type="email" 
-                        value={registerEmail}
-                        onChange={(e) => setRegisterEmail(e.target.value)}
-                        placeholder="Enter email address" 
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="block text-sm font-bold text-gray-900 mb-1">Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={18} />
-                        <input 
-                          type={showRegisterPassword ? "text" : "password"} 
-                          value={registerPassword}
-                          onChange={(e) => setRegisterPassword(e.target.value)}
-                          placeholder="Password" 
-                          className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]" 
-                          required 
-                        />
-                        <button type="button" onClick={() => setShowRegisterPassword(!showRegisterPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32]">
-                          {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="block text-sm font-bold text-gray-900 mb-1">Confirm Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2E7D32]" size={18} />
-                        <input 
-                          type={showConfirmPassword ? "text" : "password"} 
-                          value={registerConfirmPassword}
-                          onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                          placeholder="Confirm" 
-                          className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#2E7D32]" 
-                          required 
-                        />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2E7D32]">
-                          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <button type="submit" className="w-full py-4 bg-[#2E7D32] text-white rounded-xl font-bold text-lg hover:bg-[#1B5E20] transition-all shadow-md active:scale-[0.98] mt-2">
-                    Create Account
-                  </button>
-                  <button type="button" onClick={() => setLoginSubView('login')} className="w-full text-gray-500 font-bold hover:text-[#2E7D32] py-2 uppercase tracking-widest text-sm transition-colors">
-                    Back to login
-                  </button>
-                </form>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
       </div>
+    </div>
+
+    {/* Toast Notification System for Login/Logout Visibility */}
+    <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+      <AnimatePresence>
+        {toasts.map(toast => (
+          <motion.div
+            key={toast.id}
+            initial={{ opacity: 0, x: 50, scale: 0.9 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            className={`pointer-events-auto min-w-[300px] max-w-md p-4 rounded-xl shadow-2xl border flex items-center gap-3 ${
+              toast.type === 'success' ? 'bg-white border-green-100 text-green-800' :
+              toast.type === 'error' ? 'bg-white border-red-100 text-red-800' :
+              'bg-white border-blue-100 text-blue-800'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+              toast.type === 'success' ? 'bg-green-50' :
+              toast.type === 'error' ? 'bg-red-50' :
+              'bg-blue-50'
+            }`}>
+              {toast.type === 'success' ? <CheckCircle className="text-green-600" size={20} /> :
+               toast.type === 'error' ? <XCircle className="text-red-600" size={20} /> :
+               <AlertCircle className="text-blue-600" size={20} />}
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-0.5">
+                {toast.type === 'success' ? 'Success' : toast.type === 'error' ? 'Error' : 'Notification'}
+              </p>
+              <p className="text-sm font-bold leading-tight">{toast.message}</p>
+            </div>
+            <button 
+              onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+            >
+              <X size={16} />
+            </button>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+    </>
     );
   }
 
@@ -1163,10 +1298,11 @@ export default function App() {
                     <h2 className="text-2xl font-black text-gray-800 uppercase tracking-widest mb-2">Welcome, {user?.name}</h2>
                     <p className="text-sm font-bold text-gray-500">This is your dashboard.</p>
                   </div>
-                  <button onClick={handleGenerateReport} className="px-4 py-2 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-brand-100 transition-all active:scale-95 flex items-center gap-2">
+                  <button onClick={() => { setView('reports'); setShowReportPreview(true); }} className="px-4 py-2 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-brand-100 transition-all active:scale-95 flex items-center gap-2">
                     <Download size={14} /> Generate PDF
                   </button>
                 </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <StatCard title="Total Active Loans" value={stats.totalActiveLoans.toString()} icon={FileText} borderColor="border-brand-500" />
                   <StatCard title="Total Collection" value={`₱ ${stats.totalCollectionMonth.toLocaleString()}`} icon={Coins} borderColor="border-brand-600" />
@@ -1196,63 +1332,99 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <div className="col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
-                      <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wider">Recent Loan Requests</h2>
-                      <span className="text-[10px] font-black bg-brand-50 text-brand-700 px-2 py-1 rounded border border-brand-100 uppercase tracking-widest">Real-time</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-100">
-                          <tr>
-                            <th className="table-header-cell">Member</th>
-                            <th className="table-header-cell">Loan Type</th>
-                            <th className="table-header-cell text-right">Amount</th>
-                            <th className="table-header-cell">Status</th>
-                            <th className="table-header-cell">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 text-sm">
-                          {loans.slice(0, 5).map((loan) => (
-                            <tr key={loan.id} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-6 py-4 font-bold text-gray-800">{loan.member_name}</td>
-                              <td className="px-6 py-4">
-                                <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] font-bold text-gray-500 mr-2 uppercase">{loan.type}</span>
-                                <span className="text-gray-500 text-xs hidden sm:inline">{LOAN_TYPES[loan.type]}</span>
-                              </td>
-                              <td className="px-6 py-4 text-right font-mono font-bold text-gray-700">₱ {loan.amount.toLocaleString()}</td>
-                              <td className="px-6 py-4">
-                                <span className={`text-[10px] font-black uppercase tracking-tighter ${loan.status === 'Pending' ? 'text-brand-500' :
-                                    loan.status === 'Active' ? 'text-brand-500' :
-                                      loan.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
-                                  }`}>
-                                  {loan.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                {loan.status === 'Pending' ? (
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => handleUpdateLoanStatus(loan.id, 'Active')}
-                                      className="text-[10px] font-black text-brand-700 hover:bg-brand-50 px-3 py-1 rounded border border-brand-100 uppercase tracking-widest transition-all"
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleUpdateLoanStatus(loan.id, 'Rejected')}
-                                      className="text-[10px] font-black text-red-500 hover:bg-red-50 px-3 py-1 rounded border border-red-100 uppercase tracking-widest transition-all"
-                                    >
-                                      Reject
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Details</button>
-                                )}
-                              </td>
+                  <div className="col-span-2 space-y-8">
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden mb-8">
+                      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                        <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wider">Recent Loan Requests</h2>
+                        <span className="text-[10px] font-black bg-brand-50 text-brand-700 px-2 py-1 rounded border border-brand-100 uppercase tracking-widest">Real-time</span>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                              <th className="table-header-cell">Member</th>
+                              <th className="table-header-cell">Loan Type</th>
+                              <th className="table-header-cell text-right">Amount</th>
+                              <th className="table-header-cell">Status</th>
+                              <th className="table-header-cell">Action</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-sm">
+                            {loans.slice(0, 5).map((loan) => (
+                              <tr key={loan.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4 font-bold text-gray-800">{loan.member_name}</td>
+                                <td className="px-6 py-4">
+                                  <span className="px-2 py-0.5 bg-gray-100 rounded text-[10px] font-bold text-gray-500 mr-2 uppercase">{loan.type}</span>
+                                  <span className="text-gray-500 text-xs hidden sm:inline">{LOAN_TYPES[loan.type]}</span>
+                                </td>
+                                <td className="px-6 py-4 text-right font-mono font-bold text-gray-700">₱ {loan.amount.toLocaleString()}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`text-[10px] font-black uppercase tracking-tighter ${loan.status === 'Pending' ? 'text-brand-500' :
+                                      loan.status === 'Active' ? 'text-brand-500' :
+                                        loan.status === 'Rejected' ? 'text-red-500' : 'text-gray-400'
+                                    }`}>
+                                    {loan.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {loan.status === 'Pending' ? (
+                                    <div className="flex gap-2">
+                                      <button
+                                        onClick={() => handleUpdateLoanStatus(loan.id, 'Active')}
+                                        className="text-[10px] font-black text-brand-700 hover:bg-brand-50 px-3 py-1 rounded border border-brand-100 uppercase tracking-widest transition-all"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() => handleUpdateLoanStatus(loan.id, 'Rejected')}
+                                        className="text-[10px] font-black text-red-700 hover:bg-red-50 px-3 py-1 rounded border border-red-100 uppercase tracking-widest transition-all"
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Details</button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Member List Dashboard Section */}
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                      <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
+                        <h2 className="font-bold text-gray-700 text-sm uppercase tracking-wider">Registered Members</h2>
+                        <button onClick={() => setView('members')} className="text-[9px] font-black text-brand-700 uppercase tracking-widest hover:bg-brand-50 px-2 py-1 rounded border border-brand-100 transition-all">Manage All</button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                              <th className="table-header-cell">Name</th>
+                              <th className="table-header-cell">Email</th>
+                              <th className="table-header-cell">Role</th>
+                              <th className="table-header-cell">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 text-sm">
+                            {members.slice(0, 5).map((member) => (
+                              <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-6 py-4 font-bold text-gray-800">{member.name}</td>
+                                <td className="px-6 py-4 text-xs text-gray-500">{member.email}</td>
+                                <td className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">{member.role}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold ${member.status === 'Active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                                    {member.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
 
@@ -1614,12 +1786,104 @@ export default function App() {
                 </div>
 
                 {/* Report Preview */}
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                  <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest mb-4">Report Preview</h3>
-                  <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-12 text-center">
-                    <FileText className="mx-auto text-gray-300 mb-4" size={48} />
-                    <p className="text-sm text-gray-500 max-w-xs mx-auto">Click "Generate PDF" to preview the actual report here before downloading.</p>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-black text-gray-800 uppercase tracking-widest">Report Preview</h3>
+                    {showReportPreview && (
+                      <button 
+                        onClick={handleGenerateReport}
+                        className="px-6 py-2 bg-brand-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-brand-800 transition-all active:scale-95 flex items-center gap-2"
+                      >
+                        <Download size={14} /> Download PDF
+                      </button>
+                    )}
                   </div>
+                  
+                  {!showReportPreview ? (
+                    <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-12 text-center">
+                      <FileText className="mx-auto text-gray-300 mb-4" size={48} />
+                      <p className="text-sm text-gray-500 max-w-xs mx-auto">Click the button above to generate a preview of the financial report.</p>
+                      <button 
+                        onClick={() => setShowReportPreview(true)}
+                        className="mt-4 text-brand-700 font-bold text-xs uppercase tracking-widest hover:underline"
+                      >
+                        Generate Preview
+                      </button>
+                    </div>
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="border rounded-xl overflow-hidden shadow-inner bg-gray-50 p-8"
+                    >
+                      {/* Fake PDF Preview */}
+                      <div className="bg-white max-w-4xl mx-auto shadow-2xl p-10 min-h-[600px] font-serif text-gray-800">
+                        <div className="border-b-4 border-brand-700 pb-4 mb-8 flex justify-between items-end">
+                          <div>
+                            <h1 className="text-2xl font-black text-brand-700 leading-tight">NAgCO FINANCIAL SUMMARY</h1>
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Napilihan Agriculture Cooperative</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-gray-400">REPORT ID: #{Date.now().toString().slice(-8)}</p>
+                            <p className="text-[10px] font-bold text-gray-400">DATE: {new Date().toLocaleDateString()}</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 mb-12">
+                          <div className="bg-brand-50/50 p-6 rounded-lg border border-brand-100">
+                            <p className="text-[10px] font-black text-brand-700 uppercase tracking-widest mb-4">Core Metrics</p>
+                            <div className="space-y-4">
+                              <div className="flex justify-between border-b border-brand-100 pb-2">
+                                <span className="text-xs font-medium">Total Active Loans</span>
+                                <span className="text-xs font-black">{stats.totalActiveLoans}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-brand-100 pb-2">
+                                <span className="text-xs font-medium">Monthly Collections</span>
+                                <span className="text-xs font-black">₱{stats.totalCollectionMonth.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between border-b border-brand-100 pb-2">
+                                <span className="text-xs font-medium">Capital Released</span>
+                                <span className="text-xs font-black">₱{stats.totalReleased.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col justify-center items-center p-6 border border-gray-100 rounded-lg">
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Goal Achievement</p>
+                            <p className="text-5xl font-black text-brand-700">{stats.goalAchievement.toFixed(1)}%</p>
+                            <div className="w-full bg-gray-100 h-2 rounded-full mt-4 overflow-hidden">
+                              <div className="bg-brand-600 h-full" style={{ width: `${stats.goalAchievement}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-6">
+                          <p className="text-xs font-black uppercase tracking-widest border-b pb-2">Recent Payment Activity</p>
+                          <table className="w-full text-xs">
+                            <thead className="text-left text-gray-400 font-bold">
+                              <tr>
+                                <th className="pb-2">MEMBER</th>
+                                <th className="pb-2">TYPE</th>
+                                <th className="pb-2 text-right">AMOUNT</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                              {payments.slice(0, 5).map(p => (
+                                <tr key={p.id}>
+                                  <td className="py-2 font-bold">{p.member_name}</td>
+                                  <td className="py-2 opacity-60">{p.loan_type}</td>
+                                  <td className="py-2 text-right font-black">₱{p.amount.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="mt-20 pt-8 border-t text-center">
+                          <p className="text-[10px] text-gray-400 font-medium italic">This is a system-generated summary for internal review only.</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
               </div>
             )}
@@ -1704,14 +1968,44 @@ export default function App() {
                               required
                             />
                           </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-black ml-1">New password</label>
-                            <input 
-                              type="password" 
+                          <div className="space-y-2 relative">
+                            <label className="text-[10px] font-black text-black ml-1 flex items-center gap-1">
+                              New password
+                              <AlertCircle
+                                size={12}
+                                className="text-gray-500 hover:text-gray-700 transition-colors cursor-help"
+                                onMouseEnter={() => setShowSettingsTooltip(true)}
+                                onMouseLeave={() => setShowSettingsTooltip(false)}
+                              />
+                            </label>
+                            {showSettingsTooltip && (
+                              <div className="absolute top-6 left-1 bg-white text-black text-xs rounded p-2 z-10 w-64 shadow-lg border">
+                                <p className="font-bold mb-1 text-green-600">Password Requirements:</p>
+                                <div className="space-y-1">
+                                  <div className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-400' : 'text-gray-400'}`}>
+                                    <Check size={8} /> At least 8 characters
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                    <Check size={8} /> At least 1 uppercase letter
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                    <Check size={8} /> At least 1 lowercase letter
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                    <Check size={8} /> At least 1 number (0-9)
+                                  </div>
+                                  <div className={`flex items-center gap-1 ${/[!@#$%^&*]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                    <Check size={8} /> At least 1 special character (!@#$%^&*)
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <input
+                              type="password"
                               value={newPassword}
                               onChange={(e) => setNewPassword(e.target.value)}
-                              placeholder="••••••••" 
-                              className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand-700 outline-none text-sm font-bold text-black transition-all" 
+                              placeholder="••••••••"
+                              className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand-700 outline-none text-sm font-bold text-black transition-all"
                               required
                             />
                           </div>
@@ -1758,7 +2052,7 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-4">
                       <button
                         onClick={() => {
-                          alert(`Role of ${editingMember.name} updated to MEMBER`);
+                          addToast(`Role of ${editingMember.name} updated to MEMBER`, "success");
                           setShowEditRoleModal(false);
                         }}
                         className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'MEMBER' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
@@ -1768,7 +2062,7 @@ export default function App() {
                       </button>
                       <button
                         onClick={() => {
-                          alert(`Role of ${editingMember.name} updated to ADMIN`);
+                          addToast(`Role of ${editingMember.name} updated to ADMIN`, "success");
                           setShowEditRoleModal(false);
                         }}
                         className={`p-4 border-2 rounded-xl flex flex-col items-center gap-2 transition-all ${editingMember.role === 'ADMIN' ? 'border-brand-700 bg-brand-50' : 'border-gray-100 hover:bg-gray-50'}`}
@@ -2158,14 +2452,44 @@ export default function App() {
                           required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-black ml-1">New password</label>
-                        <input 
-                          type="password" 
+                      <div className="space-y-2 relative">
+                        <label className="text-[10px] font-black text-black ml-1 flex items-center gap-1">
+                          New password
+                          <AlertCircle
+                            size={12}
+                            className="text-gray-500 hover:text-gray-700 transition-colors cursor-help"
+                            onMouseEnter={() => setShowProfileTooltip(true)}
+                            onMouseLeave={() => setShowProfileTooltip(false)}
+                          />
+                        </label>
+                        {showProfileTooltip && (
+                          <div className="absolute top-6 left-1 bg-white text-black text-xs rounded p-2 z-10 w-64 shadow-lg border">
+                            <p className="font-bold mb-1 text-green-600">Password Requirements:</p>
+                            <div className="space-y-1">
+                              <div className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-400' : 'text-gray-400'}`}>
+                                <Check size={8} /> At least 8 characters
+                              </div>
+                              <div className={`flex items-center gap-1 ${/[A-Z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                <Check size={8} /> At least 1 uppercase letter
+                              </div>
+                              <div className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                <Check size={8} /> At least 1 lowercase letter
+                              </div>
+                              <div className={`flex items-center gap-1 ${/\d/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                <Check size={8} /> At least 1 number (0-9)
+                              </div>
+                              <div className={`flex items-center gap-1 ${/[!@#$%^&*]/.test(newPassword) ? 'text-green-400' : 'text-gray-400'}`}>
+                                <Check size={8} /> At least 1 special character (!@#$%^&*)
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <input
+                          type="password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="••••••••" 
-                          className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand-700 outline-none text-sm font-bold text-black transition-all" 
+                          placeholder="••••••••"
+                          className="w-full px-4 py-3 bg-white/60 border border-gray-200 rounded-lg focus:ring-1 focus:ring-brand-700 outline-none text-sm font-bold text-black transition-all"
                           required
                         />
                       </div>
@@ -2343,6 +2667,53 @@ export default function App() {
     </div>
   );
 
-  return user?.role === 'ADMIN' ? renderAdminView() : renderMemberView();
+  return (
+    <>
+      {user?.role === 'ADMIN' ? renderAdminView() : renderMemberView()}
+      
+      {/* Toast Notification System */}
+      <div className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 50, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+              className={`pointer-events-auto min-w-[300px] max-w-md p-4 rounded-xl shadow-2xl border flex items-center gap-3 ${
+                toast.type === 'success' ? 'bg-white border-green-100 text-green-800' :
+                toast.type === 'error' ? 'bg-white border-red-100 text-red-800' :
+                'bg-white border-blue-100 text-blue-800'
+              }`}
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                toast.type === 'success' ? 'bg-green-50' :
+                toast.type === 'error' ? 'bg-red-50' :
+                'bg-blue-50'
+              }`}>
+                {toast.type === 'success' ? <CheckCircle className="text-green-600" size={20} /> :
+                 toast.type === 'error' ? <XCircle className="text-red-600" size={20} /> :
+                 <AlertCircle className="text-blue-600" size={20} />}
+              </div>
+              <div className="flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-0.5">
+                  {toast.type === 'success' ? 'Success' : toast.type === 'error' ? 'Error' : 'Notification'}
+                </p>
+                <p className="text-sm font-bold leading-tight">{toast.message}</p>
+              </div>
+              <button 
+                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </>
+  );
 }
+
+export default App;
 
