@@ -6,6 +6,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import CryptoJS from 'crypto-js';
 import {
   Users,
   LayoutDashboard,
@@ -236,7 +237,7 @@ function App() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: loginEmail, password: loginPass }),
+        body: JSON.stringify({ email: loginEmail, password: CryptoJS.SHA256(loginPass).toString() }),
       });
       const data = await response.json();
 
@@ -307,7 +308,7 @@ function App() {
           name: registerFullName, 
           username: registerUsername, 
           email: registerEmail, 
-          password: registerPassword 
+          password: CryptoJS.SHA256(registerPassword).toString() 
         }),
       });
       const data = await response.json();
@@ -367,7 +368,7 @@ function App() {
       const response = await fetch('/api/auth/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resetToken, newPassword }),
+        body: JSON.stringify({ token: resetToken, newPassword: CryptoJS.SHA256(newPassword).toString() }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -527,7 +528,10 @@ function App() {
       const response = await fetch(`/api/members/${user.id}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
+        body: JSON.stringify({ 
+          currentPassword: CryptoJS.SHA256(currentPassword).toString(), 
+          newPassword: CryptoJS.SHA256(newPassword).toString() 
+        }),
       });
       const data = await response.json();
       if (response.ok) {

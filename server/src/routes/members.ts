@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../supabaseClient';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -176,14 +177,31 @@ router.put('/:id/password', async (req: Request, res: Response) => {
       .eq('id', id)
       .single();
 
-    if (fetchError || !user || user.password !== currentPassword) {
+    if (fetchError || !user) {
       res.status(401).json({ error: 'Incorrect current password' });
       return;
     }
 
+    let isPasswordValid = false;
+    if (user.password && user.password.startsWith('$2b$')) {
+      isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    } else {
+      const crypto = require('crypto');
+      const dbPasswordSha256 = crypto.createHash('sha256').update(user.password).digest('hex');
+      isPasswordValid = (dbPasswordSha256 === currentPassword);
+    }
+
+    if (!isPasswordValid) {
+      res.status(401).json({ error: 'Incorrect current password' });
+      return;
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
     const { error: updateError } = await supabase
       .from('users')
-      .update({ password: newPassword })
+      .update({ password: hashedPassword })
       .eq('id', id);
 
     if (updateError) {

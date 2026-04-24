@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../supabaseClient';
+import bcrypt from 'bcrypt';
 
 const router = Router();
 
@@ -25,8 +26,17 @@ router.post('/login', async (req: Request, res: Response) => {
       return;
     }
 
-    // Simple password check
-    if (user.password !== password) {
+    // Password check
+    let isPasswordValid = false;
+    if (user.password && user.password.startsWith('$2b$')) {
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    } else {
+      const crypto = require('crypto');
+      const dbPasswordSha256 = crypto.createHash('sha256').update(user.password).digest('hex');
+      isPasswordValid = (dbPasswordSha256 === password);
+    }
+
+    if (!isPasswordValid) {
       res.status(401).json({ error: 'Invalid email or password' });
       return;
     }
@@ -139,6 +149,10 @@ router.post('/register', async (req: Request, res: Response) => {
       return;
     }
 
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
     // Insert new user with Pending status
     const { data: newUser, error } = await supabase
       .from('users')
@@ -146,7 +160,7 @@ router.post('/register', async (req: Request, res: Response) => {
         name,
         username: username || null,
         email,
-        password, // plain text for now
+        password: hashedPassword,
         role: 'MEMBER',
         status: 'Pending',
       })
@@ -245,11 +259,15 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       return;
     }
 
+    // Hash new password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
     // Update password and clear token
     const { error: updateError } = await supabase
       .from('users')
       .update({ 
-        password: newPassword, // plain text as requested, though bcrypt is better
+        password: hashedPassword,
         reset_token: null,
         reset_token_expiry: null 
       })
