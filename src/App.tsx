@@ -136,10 +136,12 @@ const SidebarItem = ({ icon: Icon, label, id, currentView, setView, sidebarOpen,
         setSidebarOpen(false);
       }
     }}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-bold text-sm ${currentView === id ? 'bg-brand-800 text-white shadow-sm' : 'text-white hover:bg-brand-600/40'} ${(!label && !sidebarOpen) ? 'justify-center' : ''}`}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-bold text-sm ${
+      currentView === id ? 'bg-white text-brand-700 shadow-lg scale-[1.02]' : 'text-white hover:bg-brand-600/40'
+    } ${(!label && !sidebarOpen) ? 'justify-center' : ''}`}
   >
-    <Icon size={18} className="text-white shrink-0" />
-    {(label || sidebarOpen) && <span>{label}</span>}
+    <Icon size={18} className={`${currentView === id ? 'text-brand-700' : 'text-white'} shrink-0`} />
+    {sidebarOpen && <span className="animate-in fade-in slide-in-from-left-1 duration-300">{label}</span>}
   </button>
 );
 
@@ -153,6 +155,85 @@ const StatCard = ({ title, value, icon: Icon, borderColor = "border-green-500" }
     </div>
   </div>
 );
+
+const SearchResultsDropdown = ({ 
+  results, 
+  onSelect, 
+  onClose 
+}: { 
+  results: { loans: any[], members: any[], announcements: any[] }, 
+  onSelect: (view: string, data?: any) => void,
+  onClose: () => void 
+}) => {
+  const hasResults = results.loans.length > 0 || results.members.length > 0 || results.announcements.length > 0;
+
+  if (!hasResults) return (
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 text-center animate-in fade-in zoom-in-95 duration-200 z-50">
+      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
+        <Search size={20} className="text-gray-300" />
+      </div>
+      <p className="text-sm font-bold text-gray-800">No results found</p>
+      <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Try a different keyword</p>
+    </div>
+  );
+
+  return (
+    <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50 max-h-[400px] overflow-y-auto custom-scrollbar">
+      {results.members.length > 0 && (
+        <div className="p-2">
+          <div className="px-3 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Members</div>
+          {results.members.slice(0, 3).map(m => (
+            <button key={m.id} onClick={() => { onSelect('members'); onClose(); }} className="w-full flex items-center gap-3 p-2 hover:bg-brand-50 rounded-xl transition-colors text-left group">
+              <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center text-brand-700 font-bold text-xs group-hover:bg-brand-700 group-hover:text-white transition-colors">
+                {m.name.charAt(0)}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-800">{m.name}</p>
+                <p className="text-[9px] text-gray-400">{m.email}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {results.loans.length > 0 && (
+        <div className="p-2 border-t border-gray-50">
+          <div className="px-3 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Loans</div>
+          {results.loans.slice(0, 3).map(l => (
+            <button key={l.id} onClick={() => { onSelect('loans'); onClose(); }} className="w-full flex items-center gap-3 p-2 hover:bg-brand-50 rounded-xl transition-colors text-left group">
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                <FileText size={14} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-800">{l.member_name} - {l.type}</p>
+                <p className="text-[9px] text-gray-400">₱{l.amount.toLocaleString()} • {l.status}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {results.announcements.length > 0 && (
+        <div className="p-2 border-t border-gray-50">
+          <div className="px-3 py-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">Announcements</div>
+          {results.announcements.slice(0, 3).map(a => (
+            <div key={a.id} className="p-3 hover:bg-gray-50 rounded-xl transition-colors text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <Megaphone size={12} className="text-brand-500" />
+                <p className="text-[9px] font-black text-brand-600 uppercase tracking-tight">{new Date(a.created_at).toLocaleDateString()}</p>
+              </div>
+              <p className="text-[11px] font-bold text-gray-700 line-clamp-2">{a.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="p-3 bg-gray-50 text-center">
+        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Press Enter for full results</p>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [user, setUser] = useState<UserData | null>(() => {
@@ -201,6 +282,8 @@ function App() {
   const [requestAmount, setRequestAmount] = useState('');
   const [calculation, setCalculation] = useState<any>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   
   useEffect(() => {
     if (user?.profile_image) {
@@ -408,42 +491,45 @@ function App() {
     }
   };
 
+  const fetchData = async () => {
+    try {
+      const membersRes = await fetch('/api/members');
+      const membersData = await membersRes.json();
+      if (membersRes.ok) setMembers(membersData.members);
+
+      const loansRes = await fetch('/api/loans');
+      const loansData = await loansRes.json();
+      if (loansRes.ok) setLoans(loansData.loans);
+
+      const paymentsRes = await fetch('/api/payments');
+      const paymentsData = await paymentsRes.json();
+      if (paymentsRes.ok) setPayments(paymentsData.payments);
+
+      const annRes = await fetch('/api/announcements');
+      const annData = await annRes.json();
+      if (annRes.ok) setAnnouncements(annData.announcements);
+
+      if (user) {
+        const notifRes = await fetch(`/api/notifications/${user.id}`);
+        const notifData = await notifRes.json();
+        if (notifRes.ok) {
+          const formattedNotifs = notifData.notifications.map((n: any) => ({
+            id: n.id,
+            title: n.title,
+            message: n.message,
+            time: new Date(n.created_at).toLocaleDateString() + ' ' + new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            unread: !n.is_read
+          }));
+          setNotifications(formattedNotifs);
+        }
+      }
+    } catch (err) {
+      console.error('Data fetch error:', err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      const fetchData = async () => {
-        try {
-          const membersRes = await fetch('/api/members');
-          const membersData = await membersRes.json();
-          if (membersRes.ok) setMembers(membersData.members);
-
-          const loansRes = await fetch('/api/loans');
-          const loansData = await loansRes.json();
-          if (loansRes.ok) setLoans(loansData.loans);
-
-          const paymentsRes = await fetch('/api/payments');
-          const paymentsData = await paymentsRes.json();
-          if (paymentsRes.ok) setPayments(paymentsData.payments);
-
-          const annRes = await fetch('/api/announcements');
-          const annData = await annRes.json();
-          if (annRes.ok) setAnnouncements(annData.announcements);
-
-          const notifRes = await fetch(`/api/notifications/${user.id}`);
-          const notifData = await notifRes.json();
-          if (notifRes.ok) {
-            const formattedNotifs = notifData.notifications.map((n: any) => ({
-              id: n.id,
-              title: n.title,
-              message: n.message,
-              time: new Date(n.created_at).toLocaleDateString() + ' ' + new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              unread: !n.is_read
-            }));
-            setNotifications(formattedNotifs);
-          }
-        } catch (err) {
-          console.error('Data fetch error:', err);
-        }
-      };
       fetchData();
     }
   }, [user]);
@@ -588,6 +674,7 @@ function App() {
       if (response.ok) {
         addToast('Notice posted successfully!', "success");
         setShowAnnouncementModal(false);
+        fetchData();
       } else {
         addToast('Failed to post notice', "error");
       }
@@ -603,7 +690,7 @@ function App() {
         method: 'DELETE',
       });
       if (response.ok) {
-        setAnnouncements(prev => prev.filter(a => a.id !== id));
+        fetchData();
         addToast('Announcement deleted successfully', "success");
       } else {
         addToast('Failed to delete announcement', "error");
@@ -729,6 +816,25 @@ function App() {
       theme: 'striped'
     });
 
+    // Loan Type Breakdown Section
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('LOAN TYPE BREAKDOWN', 14, (doc as any).lastAutoTable.finalY + 15);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [['Type', 'Description', 'Active', 'Released', 'Collected']],
+      body: Object.entries(LOAN_TYPES).map(([type, label]) => [
+        type,
+        label,
+        stats.breakdown[type].count.toString(),
+        `PHP ${stats.breakdown[type].released.toLocaleString()}`,
+        `PHP ${stats.breakdown[type].collections.toLocaleString()}`
+      ]),
+      headStyles: { fillColor: primaryColor },
+      styles: { fontSize: 8 }
+    });
+
     // Active Loans Table
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -793,8 +899,60 @@ function App() {
     const monthlyGoal = 500000;
     const goalAchievementRaw = (totalCollectionMonth / monthlyGoal) * 100;
     const goalAchievement = Math.min(goalAchievementRaw, 100);
-    return { totalActiveLoans, totalCollectionMonth, totalReleased, monthlyGoal, goalAchievement };
+
+    const breakdown = Object.keys(LOAN_TYPES).reduce((acc, type) => {
+      acc[type] = {
+        released: loans.filter(l => l.type === type && (l.status === 'Active' || l.status === 'Approved')).reduce((sum, l) => sum + l.amount, 0),
+        collections: payments.filter(p => p.loan_type === type).reduce((sum, p) => sum + p.amount, 0),
+        count: loans.filter(l => l.type === type && l.status === 'Active').length
+      };
+      return acc;
+    }, {} as Record<string, { released: number; collections: number; count: number }>);
+
+    return { totalActiveLoans, totalCollectionMonth, totalReleased, monthlyGoal, goalAchievement, breakdown };
   }, [loans, payments]);
+
+  const filteredLoans = useMemo(() => {
+    if (!globalSearch) return loans;
+    const s = globalSearch.toLowerCase();
+    return loans.filter(l => 
+      l.id.toString().toLowerCase().includes(s) || 
+      l.type.toLowerCase().includes(s) || 
+      l.member_name?.toLowerCase().includes(s) ||
+      LOAN_TYPES[l.type as keyof typeof LOAN_TYPES]?.toLowerCase().includes(s) ||
+      l.status.toLowerCase().includes(s)
+    );
+  }, [loans, globalSearch]);
+
+  const filteredMembers = useMemo(() => {
+    if (!globalSearch) return members;
+    const s = globalSearch.toLowerCase();
+    return members.filter(m => 
+      m.name.toLowerCase().includes(s) || 
+      m.email.toLowerCase().includes(s) ||
+      m.role.toLowerCase().includes(s)
+    );
+  }, [members, globalSearch]);
+
+  const filteredPayments = useMemo(() => {
+    if (!globalSearch) return payments;
+    const s = globalSearch.toLowerCase();
+    return payments.filter(p => 
+      p.id.toString().toLowerCase().includes(s) || 
+      p.member_name?.toLowerCase().includes(s) ||
+      p.loan_type.toLowerCase().includes(s) ||
+      p.amount.toString().includes(s)
+    );
+  }, [payments, globalSearch]);
+
+  const filteredAnnouncements = useMemo(() => {
+    if (!globalSearch) return announcements;
+    const s = globalSearch.toLowerCase();
+    return announcements.filter(a => 
+      a.content.toLowerCase().includes(s) || 
+      new Date(a.created_at).toLocaleDateString().includes(s)
+    );
+  }, [announcements, globalSearch]);
 
   if (view === 'login') {
     return (
@@ -1224,22 +1382,34 @@ function App() {
     <div className="pov-110-container">
       <div className="flex h-screen overflow-hidden bg-gray-50">
         {/* Sidebar */}
-        <aside className={`bg-brand-700 text-white flex flex-col h-full border-r border-brand-800 shrink-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-20'}`}>
+        {/* Sidebar Overlay for Mobile */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar */}
+        <aside className={`fixed lg:relative z-40 bg-brand-700 text-white flex flex-col h-full border-r border-brand-800 shrink-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-20 -translate-x-full lg:translate-x-0'}`}>
           <div className="p-4 flex items-center gap-3 overflow-hidden border-b border-brand-800/30">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 p-1">
               <img src="/logo.png" alt="NAgCO" className="w-full h-full object-contain" />
             </div>
-            {sidebarOpen && <span className="font-bold text-xs leading-tight whitespace-normal w-[160px]">NAgCO Loan Management System</span>}
+            {sidebarOpen && <span className="font-bold text-xs leading-tight whitespace-normal w-[160px] animate-in fade-in slide-in-from-left-2">NAgCO Loan Management System</span>}
           </div>
 
-
-
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <SidebarItem icon={FileText} label={sidebarOpen ? "Loan Management" : ""} id="loans" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <SidebarItem icon={TrendingUp} label={sidebarOpen ? "Reports" : ""} id="reports" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <SidebarItem icon={Users} label={sidebarOpen ? "Members" : ""} id="members" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={LayoutDashboard} label="Dashboard" id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={FileText} label="Loan Management" id="loans" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={TrendingUp} label="Reports" id="reports" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={Users} label="Members" id="members" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={User} label="Profile" id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
           </nav>
 
           <div className="p-3 border-t border-brand-800/30 mt-auto">
@@ -1267,15 +1437,43 @@ function App() {
 
         {/* Content Area */}
         <main className="flex-1 flex flex-col h-full overflow-hidden">
-          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 shrink-0">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-              >
-                <Menu size={20} />
-              </button>
-            </div>
+          <header className="bg-white border-b border-gray-200 shrink-0 relative z-30">
+            <div className="h-16 flex items-center justify-between px-4 sm:px-8">
+              <div className="flex items-center gap-4 flex-1 max-w-xl">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                >
+                  <Menu size={20} />
+                </button>
+
+                {/* Desktop Search Bar */}
+                <div className="relative flex-1 hidden sm:block">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="Search members, loans, or reports..."
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-brand-700 outline-none transition-all shadow-sm"
+                  />
+                  {globalSearch && (
+                    <SearchResultsDropdown 
+                      results={{ loans: filteredLoans, members: filteredMembers, announcements: filteredAnnouncements }}
+                      onSelect={setView}
+                      onClose={() => setGlobalSearch('')}
+                    />
+                  )}
+                </div>
+
+                {/* Mobile Search Toggle */}
+                <button 
+                  onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                  className="sm:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                >
+                  {isSearchExpanded ? <X size={20} /> : <Search size={20} />}
+                </button>
+              </div>
 
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -1333,8 +1531,39 @@ function App() {
                   <Plus size={14} /> <span className="hidden sm:inline">New Announcement</span>
                 </button>
               )}
-
             </div>
+          </div>
+
+            {/* Mobile Search Bar Row */}
+            <AnimatePresence>
+              {isSearchExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="sm:hidden px-4 pb-4 overflow-visible border-t border-gray-100 bg-white"
+                >
+                  <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={globalSearch}
+                      onChange={(e) => setGlobalSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-brand-700 outline-none transition-all shadow-sm"
+                    />
+                    {globalSearch && (
+                      <SearchResultsDropdown 
+                        results={{ loans: filteredLoans, members: filteredMembers, announcements: filteredAnnouncements }}
+                        onSelect={setView}
+                        onClose={() => { setGlobalSearch(''); setIsSearchExpanded(false); }}
+                      />
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </header>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 font-sans">
@@ -1397,7 +1626,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-sm">
-                            {loans.slice(0, 5).map((loan) => (
+                            {filteredLoans.slice(0, 5).map((loan) => (
                               <tr key={loan.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4 font-bold text-gray-800">{loan.member_name}</td>
                                 <td className="px-6 py-4 hidden md:table-cell">
@@ -1458,7 +1687,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-sm">
-                            {members.slice(0, 5).map((member) => (
+                            {filteredMembers.slice(0, 5).map((member) => (
                               <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
                                 <td className="px-6 py-4 font-bold text-gray-800">{member.name}</td>
                                 <td className="px-6 py-4 text-xs text-gray-500">{member.email}</td>
@@ -1491,7 +1720,7 @@ function App() {
                         <Megaphone size={14} className="text-brand-500" /> Announcements
                       </h2>
                       <div className="space-y-6 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-                        {announcements.map((ann) => (
+                        {filteredAnnouncements.map((ann) => (
                           <div key={ann.id} className="border-l-2 border-brand-200 pl-4 relative group">
                             <p className="text-[10px] text-brand-600 font-bold uppercase tracking-tight mb-1">{new Date(ann.created_at).toLocaleDateString()}</p>
                             <p className="text-sm text-gray-700 font-bold leading-relaxed">{ann.content}</p>
@@ -1554,7 +1783,7 @@ function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm">
-                          {loans.map((loan) => (
+                          {filteredLoans.map((loan) => (
                             <tr key={loan.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 font-bold text-gray-800">{loan.member_name}</td>
                               <td className="px-6 py-4">
@@ -1624,7 +1853,7 @@ function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-sm">
-                        {members.map((m) => (
+                        {filteredMembers.map((m) => (
                           <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
@@ -1740,6 +1969,32 @@ function App() {
                   </div>
                 </div>
 
+                {/* Loan Type Breakdown Section */}
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Loan Type Distribution</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {Object.entries(LOAN_TYPES).map(([type, label]) => (
+                      <div key={type} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-3">
+                          <span className="px-2 py-1 bg-brand-50 text-brand-700 rounded text-[10px] font-black uppercase tracking-widest">{type}</span>
+                          <span className="text-[10px] font-bold text-gray-400">{stats.breakdown[type].count} Active</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-500 mb-1 line-clamp-1">{label}</p>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-[9px] font-black text-gray-400 uppercase">Released</span>
+                            <span className="text-sm font-black text-gray-800">₱{stats.breakdown[type].released.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-[9px] font-black text-gray-400 uppercase">Collected</span>
+                            <span className="text-xs font-bold text-brand-600">₱{stats.breakdown[type].collections.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Record New Collection */}
                   <div className="lg:col-span-1 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
@@ -1759,10 +2014,10 @@ function App() {
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Loan Type</label>
                         <select name="loanType" required className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-700 font-bold text-sm">
-                          <option value="APL">APL</option>
-                          <option value="MPL">MPL</option>
-                          <option value="EHL">EHL</option>
-                          <option value="EPL">EPL</option>
+                          <option value="APL">APL (Agricultural Production Loan)</option>
+                          <option value="MPL">MPL (Multi-Purpose Loan)</option>
+                          <option value="EHL">EHL (Emergency Health Loan)</option>
+                          <option value="EPL">EPL (Emergency Personal Loan)</option>
                         </select>
                       </div>
                       <div className="space-y-2">
@@ -1793,7 +2048,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[11px] font-bold">
-                            {payments.map(p => (
+                            {filteredPayments.map(p => (
                               <tr key={p.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 text-gray-500">{p.date}</td>
                                 <td className="px-6 py-4 text-gray-800">{p.member_name}</td>
@@ -1826,7 +2081,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-[11px] font-bold">
-                            {loans.map(l => (
+                            {filteredLoans.map(l => (
                               <tr key={l.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 text-gray-500">{l.created_at ? new Date(l.created_at).toLocaleDateString() : l.date}</td>
                                 <td className="px-6 py-4 text-gray-800">{l.member_name}</td>
@@ -2209,17 +2464,31 @@ function App() {
     <div className="pov-110-container">
       <div className="flex h-screen overflow-hidden bg-gray-50">
         {/* Sidebar */}
-        <aside className={`bg-brand-700 text-white flex flex-col h-full border-r border-brand-800 shrink-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64' : 'w-20'}`}>
+        {/* Sidebar Overlay for Mobile */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar */}
+        <aside className={`fixed lg:relative z-40 bg-brand-700 text-white flex flex-col h-full border-r border-brand-800 shrink-0 transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-20 -translate-x-full lg:translate-x-0'}`}>
           <div className="p-4 flex items-center gap-3 overflow-hidden border-b border-brand-800/30">
             <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 p-1">
               <img src="/logo.png" alt="NAgCO" className="w-full h-full object-contain" />
             </div>
-            {sidebarOpen && <span className="font-bold text-xs leading-tight whitespace-normal w-[160px]">NAgCO Loan Management System</span>}
+            {sidebarOpen && <span className="font-bold text-xs leading-tight whitespace-normal w-[160px] animate-in fade-in slide-in-from-left-2">NAgCO Loan Management System</span>}
           </div>
 
           <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-            <SidebarItem icon={LayoutDashboard} label={sidebarOpen ? "My Dashboard" : ""} id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            <SidebarItem icon={User} label={sidebarOpen ? "Profile" : ""} id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={LayoutDashboard} label="My Dashboard" id="dashboard" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+            <SidebarItem icon={User} label="Profile" id="profile" currentView={view} setView={setView} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
           </nav>
 
           <div className="p-3 border-t border-brand-800/30 mt-auto">
@@ -2246,15 +2515,43 @@ function App() {
         </aside>
 
         <main className="flex-1 flex flex-col h-full overflow-hidden">
-          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 shrink-0">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
-              >
-                <Menu size={20} />
-              </button>
-            </div>
+          <header className="bg-white border-b border-gray-200 shrink-0 relative z-30">
+            <div className="h-16 flex items-center justify-between px-4 sm:px-8">
+              <div className="flex items-center gap-4 flex-1 max-w-xl">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                >
+                  <Menu size={20} />
+                </button>
+
+                {/* Desktop Search Bar */}
+                <div className="relative flex-1 hidden sm:block">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    placeholder="Search your records or announcements..."
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold focus:bg-white focus:ring-2 focus:ring-brand-700 outline-none transition-all shadow-sm"
+                  />
+                  {globalSearch && (
+                    <SearchResultsDropdown 
+                      results={{ loans: filteredLoans, members: filteredMembers, announcements: filteredAnnouncements }}
+                      onSelect={setView}
+                      onClose={() => setGlobalSearch('')}
+                    />
+                  )}
+                </div>
+
+                {/* Mobile Search Toggle */}
+                <button 
+                  onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                  className="sm:hidden p-2 hover:bg-gray-100 rounded-lg text-gray-500 transition-colors"
+                >
+                  {isSearchExpanded ? <X size={20} /> : <Search size={20} />}
+                </button>
+              </div>
 
             <div className="flex items-center gap-4">
               <div className="relative">
@@ -2310,8 +2607,39 @@ function App() {
               >
                 <Plus size={14} /> <span className="hidden sm:inline">New Loan Request</span>
               </button>
-
             </div>
+          </div>
+
+            {/* Mobile Search Bar Row */}
+            <AnimatePresence>
+              {isSearchExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="sm:hidden px-4 pb-4 overflow-visible border-t border-gray-100 bg-white"
+                >
+                  <div className="relative mt-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      type="text"
+                      autoFocus
+                      value={globalSearch}
+                      onChange={(e) => setGlobalSearch(e.target.value)}
+                      placeholder="Search..."
+                      className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:ring-2 focus:ring-brand-700 outline-none transition-all shadow-sm"
+                    />
+                    {globalSearch && (
+                      <SearchResultsDropdown 
+                        results={{ loans: filteredLoans, members: filteredMembers, announcements: filteredAnnouncements }}
+                        onSelect={setView}
+                        onClose={() => { setGlobalSearch(''); setIsSearchExpanded(false); }}
+                      />
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </header>
 
           <div className="flex-1 overflow-y-auto p-4 sm:p-8 font-sans">
@@ -2360,7 +2688,7 @@ function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 text-sm">
-                          {payments.filter(p => p.member_id === user?.id).map(p => (
+                          {filteredPayments.filter(p => p.member_id === user?.id).map(p => (
                             <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{p.created_at ? new Date(p.created_at).toLocaleDateString() : p.date}</td>
                               <td className="px-6 py-4 font-bold text-gray-800 underline decoration-brand-100 underline-offset-4">Loan Payment ({p.loan_type})</td>
@@ -2370,7 +2698,7 @@ function App() {
                               </td>
                             </tr>
                           ))}
-                          {loans.filter(l => l.member_id === user?.id).map(l => (
+                          {filteredLoans.filter(l => l.member_id === user?.id).map(l => (
                             <tr key={l.id} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{l.created_at ? new Date(l.created_at).toLocaleDateString() : l.date}</td>
                               <td className="px-6 py-4 font-bold text-gray-800">Loan: {l.type}</td>
@@ -2386,7 +2714,7 @@ function App() {
                               </td>
                             </tr>
                           ))}
-                          {loans.filter(l => l.member_id === user?.id).length === 0 && payments.filter(p => p.member_id === user?.id).length === 0 && (
+                          {filteredLoans.filter(l => l.member_id === user?.id).length === 0 && filteredPayments.filter(p => p.member_id === user?.id).length === 0 && (
                             <tr>
                               <td colSpan={4} className="px-6 py-12 text-center text-gray-400 font-bold">No records found yet.</td>
                             </tr>
@@ -2403,7 +2731,7 @@ function App() {
                       <Megaphone size={14} className="text-brand-500" /> Important Updates
                     </h2>
                     <div className="space-y-6">
-                      {announcements.map((ann) => (
+                      {filteredAnnouncements.map((ann) => (
                         <div key={ann.id} className="border-l-2 border-brand-200 pl-4 relative">
                           <p className="text-[10px] text-brand-600 font-bold uppercase tracking-tight mb-1">{new Date(ann.created_at).toLocaleDateString()}</p>
                           <p className="text-sm text-gray-700 font-bold leading-relaxed">{ann.content}</p>
@@ -2611,10 +2939,10 @@ function App() {
                             className="w-full py-3 px-12 bg-white/60 border border-gray-200 rounded-xl focus:ring-1 focus:ring-brand-700 outline-none text-sm font-bold text-black transition-all cursor-pointer"
                           >
                             <option value="">Select Loan Type</option>
-                            <option value="APL">Agricultural Production (APL)</option>
-                            <option value="MPL">Multi-Purpose (MPL)</option>
-                            <option value="EHL">Emergency Health (EHL)</option>
-                            <option value="EPL">Emergency Personal (EPL)</option>
+                            <option value="APL">APL (Agricultural Production Loan)</option>
+                            <option value="MPL">MPL (Multi-Purpose Loan)</option>
+                            <option value="EHL">EHL (Emergency Health Loan)</option>
+                            <option value="EPL">EPL (Emergency Personal Loan)</option>
                           </select>
                         </div>
                       </div>
