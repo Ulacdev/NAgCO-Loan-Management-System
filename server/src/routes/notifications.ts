@@ -47,4 +47,24 @@ router.put('/:id/read', async (req: Request, res: Response) => {
   }
 });
 
+// DELETE /api/notifications/:id — delete a notification
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      res.status(500).json({ error: 'Failed to delete notification' });
+      return;
+    }
+
+    res.json({ message: 'Notification deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

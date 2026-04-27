@@ -234,3 +234,112 @@ export async function sendOTPEmail(toEmail: string, memberName: string, otp: str
     return false;
   }
 }
+// Send Loan Request Notification to Admin
+export async function sendLoanRequestEmail(memberName: string, loanType: string, amount: number) {
+  try {
+    await transporter.sendMail({
+      from: `"NAgCO System" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER!,
+      subject: `💰 New Loan Request — ${memberName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #eff6ff; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #15803d; font-size: 20px; margin: 0;">NAgCO Loan Management System</h1>
+          </div>
+          <div style="background: white; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h2 style="color: #1f2937; font-size: 16px; margin: 0 0 12px;">New Loan Application</h2>
+            <p style="color: #4b5563; font-size: 14px;"><strong>Member:</strong> ${memberName}</p>
+            <p style="color: #4b5563; font-size: 14px;"><strong>Loan Type:</strong> ${loanType}</p>
+            <p style="color: #4b5563; font-size: 14px;"><strong>Amount:</strong> ₱ ${amount.toLocaleString()}</p>
+            <p style="color: #4b5563; font-size: 14px; margin-top: 16px;">
+              Please log in to the admin dashboard to review this request.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+    console.log(`✅ Admin loan notification sent for ${memberName}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Admin loan notification failed:', error);
+    return false;
+  }
+}
+
+// Send Loan Status Update to Member
+export async function sendLoanStatusUpdateEmail(toEmail: string, memberName: string, loanType: string, amount: number, status: string) {
+  const isApproved = status === 'Active';
+  try {
+    await transporter.sendMail({
+      from: `"NAgCO System" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: `${isApproved ? '✅' : '❌'} Loan Request ${isApproved ? 'Approved' : 'Rejected'} — NAgCO`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: ${isApproved ? '#f0fdf4' : '#fef2f2'}; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #15803d; font-size: 20px; margin: 0;">NAgCO Loan Management System</h1>
+          </div>
+          <div style="background: white; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h2 style="color: #1f2937; font-size: 16px; margin: 0 0 12px;">Hi ${memberName},</h2>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+              Your request for a <strong>${loanType}</strong> in the amount of <strong>₱ ${amount.toLocaleString()}</strong> has been <strong style="color: ${isApproved ? '#15803d' : '#dc2626'};">${isApproved ? 'APPROVED' : 'REJECTED'}</strong>.
+            </p>
+            ${isApproved ? `
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">
+              The funds will be released according to the cooperative's schedule. Please check your dashboard for payment terms and release details.
+            </p>` : `
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">
+              Please contact the cooperative office if you have any questions regarding this decision.
+            </p>`}
+          </div>
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 20px;">
+            © 2026 Napilihan Agriculture Cooperative System
+          </p>
+        </div>
+      `,
+    });
+    console.log(`✅ Loan status email sent to ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Loan status email failed:', error);
+    return false;
+  }
+}
+
+// Send Loan Request Confirmation to Member
+export async function sendLoanRequestConfirmationEmail(toEmail: string, memberName: string, loanType: string, amount: number) {
+  try {
+    await transporter.sendMail({
+      from: `"NAgCO System" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: '📝 Loan Request Received — NAgCO',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 30px; background: #f9fafb; border-radius: 12px;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #15803d; font-size: 20px; margin: 0;">NAgCO Loan Management System</h1>
+          </div>
+          <div style="background: white; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <h2 style="color: #1f2937; font-size: 16px; margin: 0 0 12px;">Hi ${memberName},</h2>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+              Thank you for requesting a loan from NAgCO. We have successfully received your application for a <strong>${loanType}</strong> in the amount of <strong>₱ ${amount.toLocaleString()}</strong>.
+            </p>
+            <p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+              Your request is now <strong>Pending</strong> and is being reviewed by our administrators. We will notify you via email as soon as a decision has been made.
+            </p>
+            <p style="color: #15803d; font-size: 14px; font-weight: bold; margin: 0;">
+              Thank you for your trust in our cooperative!
+            </p>
+          </div>
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 20px;">
+            © 2026 Napilihan Agriculture Cooperative System
+          </p>
+        </div>
+      `,
+    });
+    console.log(`✅ Loan request confirmation sent to ${toEmail}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Loan request confirmation failed:', error);
+    return false;
+  }
+}

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../supabaseClient';
+import { sendLoanRequestEmail, sendLoanStatusUpdateEmail, sendLoanRequestConfirmationEmail } from '../emailService';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     // Notify Admins
-    const { data: admins } = await supabase.from('users').select('id').eq('role', 'ADMIN');
+    const { data: admins } = await supabase.from('users').select('id, email').eq('role', 'ADMIN');
     if (admins) {
       for (const admin of admins) {
         await supabase.from('notifications').insert({
@@ -63,7 +64,28 @@ router.post('/', async (req: Request, res: Response) => {
           type: 'LOAN_REQUEST'
         });
       }
+      // Send one email to the system admin address
+      await sendLoanRequestEmail(member_name, type, amount);
     }
+
+    // Send Confirmation Email to Member
+    const { data: member } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', member_id)
+      .single();
+
+    if (member && member.email) {
+      await sendLoanRequestConfirmationEmail(member.email, member_name, type, amount);
+    }
+
+    // Notify Member (In-app)
+    await supabase.from('notifications').insert({
+      user_id: member_id,
+      title: 'Loan Application Submitted',
+      message: `Your request for ${type} (₱ ${amount.toLocaleString()}) has been received and is now Pending.`,
+      type: 'LOAN_REQUEST'
+    });
 
     res.status(201).json({ loan: data, message: 'Loan request submitted successfully' });
   } catch (err) {
@@ -105,6 +127,17 @@ router.put('/:id/status', async (req: Request, res: Response) => {
         : `Your request for ${data.type} (₱ ${data.amount.toLocaleString()}) was rejected.`,
       type: 'LOAN_STATUS'
     });
+
+    // Send Email to Member
+    const { data: member } = await supabase
+      .from('users')
+      .select('email, name')
+      .eq('id', data.member_id)
+      .single();
+
+    if (member && member.email) {
+      await sendLoanStatusUpdateEmail(member.email, member.name, data.type, data.amount, status);
+    }
 
     res.json({ loan: data, message: `Loan status updated to ${status}` });
   } catch (err) {

@@ -214,9 +214,9 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
     // Save token to DB
     await supabase
       .from('users')
-      .update({ 
-        reset_token: token, 
-        reset_token_expiry: expiry 
+      .update({
+        reset_token: token,
+        reset_token_expiry: expiry
       })
       .eq('id', user.id);
 
@@ -266,10 +266,10 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     // Update password and clear token
     const { error: updateError } = await supabase
       .from('users')
-      .update({ 
+      .update({
         password: hashedPassword,
         reset_token: null,
-        reset_token_expiry: null 
+        reset_token_expiry: null
       })
       .eq('id', user.id);
 
