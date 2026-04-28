@@ -1,81 +1,75 @@
-# NAgCO Loan Management System
-### Napilihan Agriculture Cooperative
+# 🌾 NAgCO Loan Management System
+### *A Simple Way to Handle Loans Online*
 
-A modern, responsive, and secure Loan Management System built for the Napilihan Agriculture Cooperative. This system streamlines loan requests, approvals, and payment tracking for both administrators and cooperative members.
-
----
-
-## 🚀 Tech Stack
-
-### Frontend
-- **React (Vite)**: High-performance frontend framework.
-- **TypeScript**: Ensuring type safety and robust code.
-- **Tailwind CSS**: Modern utility-first CSS framework for a premium, responsive UI.
-- **Framer Motion**: Smooth, high-end animations and transitions.
-- **Lucide React**: Elegant and consistent iconography.
-- **CryptoJS**: Client-side hashing for secure password transmission.
-
-### Backend
-- **Node.js & Express**: Fast and scalable server-side environment.
-- **TypeScript**: Maintaining consistency between frontend and backend.
-- **Supabase (PostgreSQL)**: Enterprise-grade database with real-time capabilities.
-- **Nodemailer**: Automated email notification system (OTP, approvals, notices).
-- **Bcrypt**: Industrial-standard password hashing for database security.
+Welcome to the **NAgCO Loan Management System**! This is a website made to help the Napilihan Agriculture Cooperative (a local farming group) handle their loans without using too much paper or confusing spreadsheets. It works on both computers and phones.
 
 ---
 
-## 🛠️ Key Tools & Services
-- **Supabase Dashboard**: For managing the PostgreSQL database and authentication settings.
-- **Gmail SMTP**: Powering the automated email communications via App Passwords.
-- **Vercel**: The recommended platform for hosting the frontend and serverless functions.
-- **SHA-256 & Bcrypt**: Dual-layer security for user credentials.
+## 🧐 Why did we build this?
+Before, borrowing money meant filling out lots of paper forms and waiting a long time. This system makes it better by:
+1. **Online Forms**: You can apply for a loan right on your phone.
+2. **Easy Tracking**: No more asking "Is my loan ready?" — just check your account.
+3. **Better Records**: The bosses (Admins) can see how much money is being borrowed with just one click.
 
 ---
 
-## 🏗️ System Architecture
+## 🚀 How the System Works (Step-by-Step)
 
-### 1. Authentication Flow
-- **Multi-Layer Security**: Passwords are hashed with SHA-256 on the client before being sent, then re-hashed with Bcrypt on the server.
-- **2FA/OTP**: Login requires a 6-digit one-time password sent to the user's registered email.
-- **Role-Based Access (RBAC)**: Distinct interfaces and permissions for `ADMIN` and `MEMBER` roles.
+### 1. Getting In (Logging In Safely)
+*   **Step 1: Sign Up**: New people sign up with their name and email.
+*   **Step 2: Admin Check**: A boss (Admin) looks at your name and says "Yes" to activate your account.
+*   **Step 3: Log In**: You enter your email and password.
+*   **Step 4: Email Code (OTP)**: The system sends a 6-digit code to your email. You type that code in to get to your home page. This makes sure no one else can steal your account.
 
-### 2. Loan Management
-- **Request Flow**: Members can calculate and submit loan requests with specific types (APL, MPL, EHL, EPL).
-- **Admin Approval**: Admins receive real-time notifications of new requests and can approve or reject them with a single click.
-- **Automated Notifications**: Users are instantly notified via the dashboard and email when their loan status changes.
-
-### 3. Financial Tracking
-- **Payment Records**: Admins can record collections, which are immediately reflected in the member's history and the system's financial reports.
-- **PDF Reporting**: Built-in functionality to generate professional financial summaries in PDF format.
-
-### 4. Responsive UI
-- **Mobile-First Design**: A "Facebook-style" mobile experience for authentication and dashboards.
-- **Adaptive Layouts**: Tables and cards automatically hide non-essential data on small screens to maintain clarity.
+### 2. Borrowing Money (The Loan Process)
+*   **Step 1: Calculator**: You use a tool on the screen to see how much you will pay back each month.
+*   **Step 2: Apply**: You ask for a loan (like for an emergency or for your farm).
+*   **Step 3: Review**: The boss (Admin) sees your request and clicks "Approve."
+*   **Step 4: Done!**: You get your money. When you pay it back, the boss marks it as "Paid."
 
 ---
 
-## 📂 Project Structure
-```bash
-├── server/               # Node.js Backend
-│   ├── src/
-│   │   ├── routes/       # API Endpoints (Auth, Loans, Members, etc.)
-│   │   ├── emailService.ts # Email notification logic
-│   │   └── index.ts      # Server entry point
-│   └── .env              # Backend environment variables
-├── src/                  # React Frontend
-│   ├── App.tsx           # Main Application logic & UI
-│   ├── index.css         # Global styles & Tailwind config
-├── vercel.json           # Hosting configuration
-└── README.md             # Project documentation
-```
+## 👥 Who uses it? (The Two Types of Accounts)
+
+### 1. The Member (The Borrower)
+*   **Home Page**: Sees how much money they borrowed and how much is left to pay.
+*   **Calculator**: A tool to check the interest before asking for money.
+*   **Loan History**: A list of all the loans they had in the past.
+*   **Alerts**: Gets a message when their loan is approved.
+
+### 2. The Admin (The Boss)
+*   **Control Panel**: Sees a summary of all members and all the money given out.
+*   **Member List**: Can add new members or remove old ones.
+*   **Loan List**: Sees all the people asking for money and can say "Yes" or "No."
+*   **Reports**: Can save a file (PDF) to show how the money is being used.
 
 ---
 
-## 🛡️ Security Best Practices
-- **Service Role Bypass**: The backend uses Supabase Service Role keys to perform secure operations while keeping the database shielded from public access.
-- **Input Sanitization**: All data sent to the server is validated and sanitized.
-- **Cascading Deletes**: Database constraints ensure that deleting a user safely cleans up all related records (loans, payments, notifications).
+## 🔒 Safety (Keeping your data private)
+Since this is about money, we make sure it is safe:
+*   **Secret Passwords**: We don't save your actual password. We use a trick to scramble it so no one can read it.
+*   **Email Codes**: Even if someone knows your password, they still need the code from your email to get in.
+*   **Locked Pages**: Only the bosses can see the sensitive "Admin" pages.
 
 ---
 
-© 2026 Napilihan Agriculture Cooperative System. All rights reserved.
+## 🛠️ Tools We Used (The "Tech Stack")
+
+If you want to know how we built this, here are the parts:
+
+### The Part You See (Frontend)
+*   **React**: This builds the pages and buttons you click.
+*   **Tailwind**: This makes the website look pretty and clean.
+*   **Framer Motion**: This makes the pages move smoothly when you click them.
+
+### The Brain Behind the Screen (Backend)
+*   **Node.js**: The main "brain" that handles all the data.
+*   **Supabase**: The big storage box where we keep all the names, loans, and info.
+*   **Nodemailer**: The tool that sends the automatic emails to you.
+
+### Where it Lives Online (Deployment)
+*   **Vercel**: The place where the website is hosted so you can visit it online.
+*   **Gmail**: We use Gmail's system to send the login codes.
+
+---
+*Made for the Napilihan Agriculture Cooperative.*

@@ -333,6 +333,8 @@ function App() {
   const [showNoPendingModal, setShowNoPendingModal] = useState(false);
   const [noPendingActionType, setNoPendingActionType] = useState<'Approve' | 'Reject'>('Approve');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSubmittingLoan, setIsSubmittingLoan] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
@@ -849,6 +851,7 @@ function App() {
 
   const handleLoanRequest = async () => {
     if (!calculation || !user) return;
+    setIsSubmittingLoan(true);
     try {
       const response = await fetch('/api/loans', {
         method: 'POST',
@@ -860,7 +863,15 @@ function App() {
           amount: parseFloat(requestAmount)
         }),
       });
+
+      // Nice artificial delay for professional feel
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       if (response.ok) {
+        setShowSuccessAnimation(true);
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setShowSuccessAnimation(false);
+
         addToast('Loan request submitted successfully!', "success");
         setShowRequestModal(false);
         setCalculation(null);
@@ -875,6 +886,8 @@ function App() {
       }
     } catch (err) {
       addToast('Network error', "error");
+    } finally {
+      setIsSubmittingLoan(false);
     }
   };
 
@@ -3110,6 +3123,7 @@ function App() {
                               <div>
                                 <p className="text-3xl font-black text-gray-800">₱ {(nearestLoan.amount / months).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                                 <p className="mt-2 text-[10px] font-bold text-brand-600 uppercase tracking-tight">Due on: {date.toLocaleDateString()}</p>
+                                <p className="mt-1 text-[8px] font-bold text-red-500 uppercase tracking-tight italic">* 3% monthly penalty after due date</p>
                               </div>
                             );
                           }
@@ -3165,6 +3179,9 @@ function App() {
                                     date.setMonth(date.getMonth() + months);
                                     return date.toLocaleDateString();
                                   })() : '--'}
+                                  {l.status === 'Active' && (
+                                    <div className="text-[7px] text-red-400 font-bold leading-none mt-0.5">3% monthly penalty if late</div>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-2">
@@ -3444,13 +3461,23 @@ function App() {
                             onClick={() => {
                               if (!requestType || !requestAmount) return;
                               const amt = parseFloat(requestAmount);
-                              const sf = amt * 0.02;
-                              const cbuVal = 100; // CBU is always 100
-                              const intr = amt * 0.04;
-                              const td = sf + cbuVal + intr;
                               
-                              // Term is 4 months for APL and MPL
-                              const termVal = (requestType === 'APL' || requestType === 'MPL') ? '4 months' : '2 months';
+                              // Range Validation
+                              if (requestType === 'EHL' && (amt < 2000 || amt > 5000)) {
+                                addToast('EHL loan amount must be between ₱2,000 and ₱5,000', 'error');
+                                return;
+                              }
+                              if (requestType === 'EPL' && (amt < 1000 || amt > 3000)) {
+                                addToast('EPL loan amount must be between ₱1,000 and ₱3,000', 'error');
+                                return;
+                              }
+
+                              const isLongTerm = requestType === 'APL' || requestType === 'MPL';
+                              const months = isLongTerm ? 4 : 2;
+                              const sf = amt * 0.02;
+                              const cbuVal = isLongTerm ? 100 : 0;
+                              const intr = amt * 0.02 * months; // 2% interest per month
+                              const td = sf + cbuVal + intr;
                               
                               setCalculation({
                                 type: LOAN_TYPES[requestType as LoanType],
@@ -3458,7 +3485,7 @@ function App() {
                                 serviceFee: sf,
                                 cbu: cbuVal,
                                 interest: intr,
-                                term: termVal,
+                                term: `${months} months`,
                                 totalDeduction: td,
                                 netRelease: amt - td
                               });
@@ -3499,9 +3526,13 @@ function App() {
                               <span className="text-brand-700">Total Deduction:</span>
                               <span className="text-brand-900 font-black">₱ {calculation.totalDeduction.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between pt-2 text-xs border-t border-brand-200 mt-1">
+                             <div className="flex justify-between pt-2 text-xs border-t border-brand-200 mt-1">
                               <span className="text-brand-800 font-black">Net Release:</span>
                               <span className="text-brand-900 font-black">₱ {calculation.netRelease.toLocaleString()}</span>
+                            </div>
+                            <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-100 flex items-center gap-2">
+                              <AlertTriangle size={12} className="text-amber-600" />
+                              <p className="text-[8px] text-amber-700 font-bold leading-tight uppercase">NOTE: AN ADDITIONAL 3% PENALTY PER MONTH WILL BE APPLIED AFTER THE DUE DATE.</p>
                             </div>
                           </div>
                         </div>
@@ -3661,11 +3692,12 @@ function App() {
                     <h4 className="text-[10px] font-black text-brand-700 uppercase tracking-widest">Calculation Breakdown</h4>
                     {(() => {
                       const amt = selectedLoan.amount;
+                      const isLongTerm = selectedLoan.type === 'APL' || selectedLoan.type === 'MPL';
+                      const months = isLongTerm ? 4 : 2;
                       const sf = amt * 0.02;
-                      const cbuVal = 100;
-                      const intr = amt * 0.04;
+                      const cbuVal = isLongTerm ? 100 : 0;
+                      const intr = amt * 0.02 * months; // 2% per month
                       const td = sf + cbuVal + intr;
-                      const months = (selectedLoan.type === 'APL' || selectedLoan.type === 'MPL') ? 4 : 2;
                       const date = new Date(selectedLoan.created_at || selectedLoan.date);
                       date.setMonth(date.getMonth() + months);
 
@@ -3680,7 +3712,7 @@ function App() {
                             <span>₱ {cbuVal.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between p-2 bg-gray-50 rounded-lg">
-                            <span>Interest Rate (4%)</span>
+                            <span>Interest Rate (2% / mo)</span>
                             <span>₱ {intr.toLocaleString()}</span>
                           </div>
                           <div className="flex justify-between p-2 bg-brand-50 text-brand-800 rounded-lg border border-brand-100">
@@ -3700,6 +3732,29 @@ function App() {
                               <span>Monthly Payment</span>
                               <span className="text-brand-700 font-black">₱ {(amt / months).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
+                            
+                            {(() => {
+                              const now = new Date();
+                              if (selectedLoan.status === 'Active' && now > date) {
+                                const monthsLate = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+                                const penalty = amt * 0.03 * Math.max(1, monthsLate);
+                                return (
+                                  <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-xl">
+                                    <div className="flex justify-between text-red-700 mb-1">
+                                      <span className="flex items-center gap-1"><AlertTriangle size={12} /> Overdue Penalty (3%)</span>
+                                      <span className="font-black">₱ {penalty.toLocaleString()}</span>
+                                    </div>
+                                    <p className="text-[8px] text-red-500 font-bold italic uppercase">Loan is {monthsLate || 1} month(s) overdue</p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="flex justify-between text-red-600 mt-2 pt-2 border-t border-red-50 italic">
+                                  <span className="flex items-center gap-1"><AlertTriangle size={10} /> Overdue Penalty</span>
+                                  <span>3% per month</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
@@ -3828,6 +3883,70 @@ function App() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Loan Submission Loader */}
+      <AnimatePresence>
+        {(isSubmittingLoan || showSuccessAnimation) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-900/80"
+          >
+            <div className="text-center px-4">
+              {!showSuccessAnimation ? (
+                <div className="relative">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                    className="w-24 h-24 border-4 border-white/10 border-t-brand-500 rounded-full mx-auto"
+                  />
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="absolute inset-0 flex items-center justify-center"
+                  >
+                    <Coins size={32} className="text-white animate-pulse" />
+                  </motion.div>
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="mt-12"
+                  >
+                    <h3 className="text-white font-black text-2xl uppercase tracking-[0.4em] mb-3">Processing</h3>
+                    <div className="flex justify-center gap-1.5 mb-3">
+                      {[0, 1, 2].map(i => (
+                        <motion.div key={i} animate={{ scale: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} className="w-1.5 h-1.5 bg-brand-400 rounded-full" />
+                      ))}
+                    </div>
+                    <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.2em]">Securing your financial request...</p>
+                  </motion.div>
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", damping: 15 }}
+                  className="flex flex-col items-center"
+                >
+                  <div className="w-28 h-28 bg-white rounded-3xl flex items-center justify-center mb-10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] rotate-3">
+                    <CheckCircle size={56} className="text-brand-700 -rotate-3" />
+                  </div>
+                  <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <h3 className="text-white font-black text-4xl uppercase tracking-tighter mb-3">Success!</h3>
+                    <p className="text-brand-200 text-sm font-bold uppercase tracking-widest">Your request has been filed.</p>
+                  </motion.div>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
