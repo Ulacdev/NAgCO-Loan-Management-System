@@ -3146,6 +3146,7 @@ function App() {
                               <th className="table-header-cell text-right">Monthly Payment</th>
                               <th className="table-header-cell">Due Date</th>
                               <th className="table-header-cell">Status</th>
+                              <th className="table-header-cell">Action</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 text-sm">
@@ -3159,6 +3160,7 @@ function App() {
                                 <td className="px-6 py-4">
                                   <span className="text-[10px] font-black text-brand-600 uppercase tracking-tighter">Verified</span>
                                 </td>
+                                <td className="px-6 py-4"></td>
                               </tr>
                             ))}
                             {filteredLoans.filter(l => l.member_id === user?.id).map(l => (
@@ -3184,27 +3186,27 @@ function App() {
                                   )}
                                 </td>
                                 <td className="px-6 py-4">
-                                  <div className="flex items-center gap-2">
-                                    <button 
-                                      onClick={() => { setSelectedLoan(l); setShowViewLoanModal(true); }}
-                                      className="p-1 text-gray-400 hover:text-brand-700 transition-colors"
-                                      title="View Details"
-                                    >
-                                      <Eye size={14} />
-                                    </button>
-                                    <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${l.status === 'Active' ? 'bg-green-100 text-green-700' :
-                                        l.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
-                                          'bg-red-100 text-red-700'
-                                      }`}>
-                                      {l.status}
-                                    </span>
-                                  </div>
+                                  <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${l.status === 'Active' ? 'bg-green-100 text-green-700' :
+                                      l.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                        'bg-red-100 text-red-700'
+                                    }`}>
+                                    {l.status}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <button 
+                                    onClick={() => { setSelectedLoan(l); setShowViewLoanModal(true); }}
+                                    className="p-1 text-gray-400 hover:text-brand-700 transition-colors"
+                                    title="View Details"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
                                 </td>
                               </tr>
                             ))}
                             {filteredLoans.filter(l => l.member_id === user?.id).length === 0 && filteredPayments.filter(p => p.member_id === user?.id).length === 0 && (
                               <tr>
-                                <td colSpan={6} className="px-6 py-12 text-center text-gray-400 font-bold">No records found yet.</td>
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-400 font-bold">No records found yet.</td>
                               </tr>
                             )}
                           </tbody>
